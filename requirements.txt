@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+jinja2
+google-cloud-firestore
+requests
+pydantic
+python-multipart

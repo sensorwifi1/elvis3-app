@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu - zjedz.it</title>
+    <style>
+        :root { --gold: #d4af37; --bg: #000; --card: #111; --green: #2e7d32; }
+        body { background: var(--bg); color: white; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        .main-container { display: flex; flex: 1; flex-direction: row; }
+        
+        /* MENU */
+        .menu-section { flex: 1; padding: 20px; overflow-y: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+        .card { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; border: 1px solid #222; cursor: pointer; }
+        .card img { width: 100%; height: 100px; object-fit: cover; border-radius: 8px; }
+        .card h4 { margin: 8px 0 4px; font-size: 1em; }
+        .card p { color: var(--gold); font-weight: bold; margin: 0; }
+
+        /* SIDEBAR (Responsive) */
+        .sidebar { width: 350px; background: #050505; border-left: 1px solid #222; padding: 20px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; box-sizing: border-box; }
+        .cart-box { flex: 0.4; overflow-y: auto; border-bottom: 1px solid #333; margin-bottom: 15px; }
+        .status-box { flex: 0.6; overflow-y: auto; font-size: 0.85em; }
+
+        .btn-order { background: var(--green); color: white; border: 2px solid #fff; padding: 15px; border-radius: 10px; width: 100%; font-weight: bold; cursor: pointer; font-size: 1.1em; margin-bottom: 15px; }
+        .action-btns { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-call { background: #2196f3; flex: 1; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; }
+        .btn-pay { background: #9c27b0; flex: 1; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; }
+
+        /* STATUSY */
+        .status-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; }
+        .st-ready { color: #4caf50; font-weight: bold; }
+        .st-preparing { color: #ff9800; }
+
+        /* MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; }
+        .modal-content { background: #151515; width: 90%; max-width: 450px; padding: 20px; border-radius: 20px; border: 1px solid var(--gold); position: relative; max-height: 90vh; overflow-y: auto; }
+        .modal-img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin: 10px 0; }
+        .modal-info-row { display: flex; justify-content: center; gap: 15px; font-size: 0.8em; color: #888; margin: 10px 0; }
+        .modal-info-row span { background: #222; padding: 4px 8px; border-radius: 5px; }
+
+        @media (max-width: 850px) {
+            .main-container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; border-left: none; border-top: 1px solid #222; position: static; }
+            .menu-section { height: auto; overflow: visible; }
+        }
+
+        #thank-you-screen { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100vh; width: 100%; background: #000; position: fixed; top: 0; left: 0; z-index: 9999; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="thank-you-screen">
+        <h1 style="color:var(--gold); font-size:3em;">DZIĘKUJEMY! 🍔</h1>
+        <p style="color:#aaa;">Stolik został posprzątany. Zapraszamy ponownie!</p>
+        <button onclick="location.reload()" style="background:var(--gold); border:none; padding:15px 30px; border-radius:10px; font-weight:bold; margin-top:20px;">NOWE ZAMÓWIENIE</button>
+    </div>
+
+    <div class="main-container" id="app-content">
+        <div class="menu-section">
+            <h2 style="color:var(--gold); margin:0 0 10px;">ELVIS MENU</h2>
+            <div id="joke-bubble" style="color:#666; font-style:italic; font-size:0.8em; margin-bottom:15px;">Duch burgera szuka żartu...</div>
+            <div class="grid" id="menu-grid"></div>
+        </div>
+
+        <div class="sidebar">
+            <div class="action-btns">
+                <button class="btn-call" onclick="fetch('/api/call_waiter/{{session_table}}', {method:'POST'})">🛎️ KELNER</button>
+                <button class="btn-pay" onclick="fetch('/api/pay_request/{{session_table}}', {method:'POST'})">💳 RACHUNEK</button>
+            </div>
+            <h4 style="margin:0 0 10px; font-size:0.8em; color:#555;">KOSZYK</h4>
+            <div id="cart" class="cart-box"></div>
+            <button class="btn-order" onclick="sendOrder()">ZAMAWIAM 🚀</button>
+            <h4 style="margin:10px 0 10px; font-size:0.8em; color:#555;">STATUS</h4>
+            <div id="order-status" class="status-box"></div>
+        </div>
+    </div>
+
+    <div id="productModal" class="modal-overlay">
+        <div class="modal-content">
+            <button onclick="closeModal()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.5em; cursor:pointer;">✕</button>
+            <div id="modalStory" style="color:var(--gold); font-size:0.8em; font-style:italic; margin-bottom:10px;"></div>
+            <img id="modalImg" class="modal-img">
+            <h2 id="modalTitle" style="margin:5px 0;"></h2>
+            <div id="modalDesc" style="font-size:0.85em; color:#bbb; margin-bottom:10px;"></div>
+            
+            <div class="modal-info-row">
+                <span id="modalAllergens"></span>
+                <span id="modalKcal"></span>
+                <span id="modalWeight"></span>
+            </div>
+
+            <p id="modalPrice" style="font-size:1.3em; font-weight:bold; color:var(--gold); margin:10px 0;"></p>
+            
+            <div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:15px;">
+                <button onclick="modQty(-1)" style="width:35px; height:35px; border-radius:50%; border:none; background:#333; color:white;">-</button>
+                <b id="modalQtyTxt" style="font-size:1.4em;">1</b>
+                <button onclick="modQty(1)" style="width:35px; height:35px; border-radius:50%; border:none; background:#333; color:white;">+</button>
+            </div>
+            <textarea id="modalNote" style="width:100%; background:#000; border:1px solid #333; color:white; padding:8px; border-radius:8px; margin-bottom:15px;" placeholder="Uwagi..."></textarea>
+            <button style="background:var(--gold); color:black; border:none; padding:15px; border-radius:12px; width:100%; font-weight:bold;" onclick="confirmAdd()">DODAJ DO KOSZYKA (<span id="modalTotal">0.00</span> zł)</button>
+        </div>
+    </div>
+
+    <script>
+        const tableId = "{{ session_table }}";
+        const mySession = "{{ my_session_id }}";
+        const serverMenu = {{ menu | tojson | safe }};
+        const cart = {};
+        let currentProduct = null; let currentQty = 1;
+
+        function renderMenu() {
+            let html = '';
+            for (const [key, v] of Object.entries(serverMenu)) {
+                html += `<div class="card" onclick="openModal('${key}')">
+                    <img src="/static/images/${v.image}" onerror="this.src='https://via.placeholder.com/150'">
+                    <h4>${v.name}</h4><p>${v.price} zł</p></div>`;
+            }
+            document.getElementById('menu-grid').innerHTML = html;
+        }
+
+        function openModal(key) {
+            const v = serverMenu[key]; currentProduct = { key, ...v }; currentQty = 1;
+            document.getElementById('modalStory').innerText = "Historyk szuka faktów...";
+            fetch(`/api/get_story?item=${encodeURIComponent(v.name)}`).then(r => r.json()).then(d => document.getElementById('modalStory').innerText = d.story);
+            document.getElementById('modalImg').src = `/static/images/${v.image}`;
+            document.getElementById('modalTitle').innerText = v.name;
+            document.getElementById('modalDesc').innerText = v.description || "";
+            document.getElementById('modalAllergens').innerText = v.allergens ? "⚠️ " + v.allergens : "Brak alergenów";
+            document.getElementById('modalKcal').innerText = v.kcal ? "🔥 " + v.kcal + " kcal" : "";
+            document.getElementById('modalWeight').innerText = v.weight ? "⚖️ " + v.weight + "g" : "";
+            document.getElementById('modalPrice').innerText = v.price + " zł";
+            updateModalPrice();
+            document.getElementById('productModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('productModal').style.display = 'none'; }
+        function modQty(c) { if(currentQty + c >= 1) { currentQty += c; updateModalPrice(); } }
+        function updateModalPrice() { 
+            document.getElementById('modalQtyTxt').innerText = currentQty; 
+            document.getElementById('modalTotal').innerText = (currentProduct.price * currentQty).toFixed(2); 
+        }
+
+        function confirmAdd() {
+            const note = document.getElementById('modalNote').value;
+            const k = note ? `${currentProduct.key}_${Date.now()}` : currentProduct.key;
+            if(!cart[k]) cart[k] = { name: currentProduct.name, price: currentProduct.price, qty: 0, note };
+            cart[k].qty += currentQty; renderCart(); closeModal();
+        }
+
+        // Naprawiona funkcja renderCart
+function renderCart() {
+    let html = '';
+    let totalBasket = 0; 
+    for(const [k, v] of Object.entries(cart)) {
+        const lineTotal = parseFloat(v.price) * parseInt(v.qty);
+        totalBasket += lineTotal;
+        html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85em;">
+            <span>${v.qty}x ${v.name}</span>
+            <span>${lineTotal.toFixed(2)} zł <button style="color:red; background:none; border:none;" onclick="delete cart['${k}']; renderCart()">✕</button></span>
+        </div>`;
+    }
+    document.getElementById('cart').innerHTML = html || "<p style='color:#444;'>Pusto</p>";
+    // Aktualizacja przycisku z sumą
+    const btn = document.querySelector('.btn-order');
+    btn.innerText = totalBasket > 0 ? `ZAMAWIAM (${totalBasket.toFixed(2)} zł) 🚀` : "ZAMAWIAM 🚀";
+}
+
+// Naprawiona funkcja sendOrder - musi wysyłać session_id!
+async function sendOrder() {
+    const items = Object.entries(cart);
+    if (items.length === 0) {
+        alert("Koszyk jest pusty!");
+        return;
+    }
+
+    // Blokujemy przycisk, żeby nie kliknąć dwa razy
+    const orderBtn = document.querySelector('.btn-order');
+    orderBtn.disabled = true;
+    orderBtn.innerText = "WYSYŁANIE...";
+
+    try {
+        for (const [key, item] of items) {
+            // Wysyłamy każdą sztukę oddzielnie, aby KDS mógł je poprawnie grupować/rozdzielać
+            for (let i = 0; i < item.qty; i++) {
+                await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table_number: tableId,
+                        burger_name: item.name,
+                        price: item.price,
+                        note: item.note,
+                        session_id: mySession // Przekazujemy sesję z Twojego urządzenia
+                    })
+                });
+            }
+            delete cart[key]; // Usuwamy z koszyka po udanej wysyłce
+        }
+
+        // --- EFEKT DUSZKA ---
+        const toast = document.getElementById('toast');
+        toast.innerHTML = "👻 POSZŁO DO KUCHNI! SMAŻYMY!";
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+
+        // Czyścimy UI
+        renderCart();
+        loadStatus(); // Odświeżamy listę zamówień (rachunek)
+
+    } catch (e) {
+        console.error("Błąd wysyłki:", e);
+        alert("Wystąpił błąd przy wysyłaniu zamówienia.");
+    } finally {
+        orderBtn.disabled = false;
+        orderBtn.innerText = "ZAMAWIAM 🚀";
+    }
+}
+
+       async function loadStatus() {
+    const tRes = await fetch('/api/active_tables');
+    const tData = await tRes.json();
+    const tInfo = tData.tables.find(t => t.table_number == tableId);
+    
+    // Jeśli sesja wygasła (posprzątane) -> ekran końcowy
+    if (!tInfo || tInfo.session_id !== mySession) {
+        document.getElementById('thank-you-screen').style.display = 'flex';
+        document.getElementById('app-content').style.display = 'none';
+        return;
+    }
+
+    const res = await fetch('/api/all_orders');
+    const data = await res.json();
+    
+    // FILTRUJEMY: Tylko moje zamówienia z TEJ konkretnej sesji
+    const myActiveOrders = data.orders.filter(o => 
+        o.table_number == tableId && o.session_id === mySession
+    );
+    
+    let html = ''; let total = 0;
+    myActiveOrders.forEach(o => {
+        if(!o.paid) total += parseFloat(o.price);
+        html += `<div class="status-item">
+            <span>• ${o.burger_name}</span>
+            <b class="st-${o.status}">${o.paid ? '✅ Opłacone' : o.status_pl}</b>
+        </div>`;
+    });
+
+    document.getElementById('order-status').innerHTML = html + 
+        `<h3 style="text-align:right; color:var(--gold); margin-top:10px;">SUMA: ${total.toFixed(2)} zł</h3>`;
+}
+
+        renderMenu(); loadStatus();
+        setInterval(loadStatus, 4000);
+    </script>
+</body>
+</html>
