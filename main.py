@@ -194,18 +194,18 @@ async def save_product(
     key: str=Form(...), name: str=Form(...), price: float=Form(...), description: str=Form(""),
     allergens: str=Form(""), kcal: str=Form(""), weight: str=Form(""),
     sort_order: int=Form(10), to_kitchen: bool=Form(True),
-    image_name: Optional[str]=Form(None), file: Optional[UploadFile]=File(None)
+    file: Optional[UploadFile]=File(None)
 ):
-    final_image = image_name
+    update_data = {
+        "name": name, "price": price, "description": description, "allergens": allergens,
+        "kcal": kcal, "weight": weight, "sort_order": sort_order, "to_kitchen": to_kitchen
+    }
     if file and file.filename:
         img_dir = APP_DIR / "static" / "images"
         img_dir.mkdir(parents=True, exist_ok=True)
         with open(img_dir / file.filename, "wb+") as f: f.write(file.file.read())
-        final_image = file.filename
-    db.collection("menu").document(key).set({
-        "name": name, "price": price, "description": description, "allergens": allergens,
-        "kcal": kcal, "weight": weight, "image": final_image, "sort_order": sort_order, "to_kitchen": to_kitchen
-    }, merge=True)
+        update_data["image"] = file.filename
+    db.collection("menu").document(key).set(update_data, merge=True)
     await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 

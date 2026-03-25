@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 import websockets
-from flask import Flask, jsonify, request, render_template_string, redirect, session
+from flask import Flask, jsonify, request, render_template_string, redirect, session, url_for
 
 app = Flask(__name__)
 app.secret_key = "super-secret-key-rpi"
@@ -33,6 +33,7 @@ INDEX_HTML = """
       .box { border: 1px solid #333; padding: 20px; margin-bottom: 20px; border-radius: 8px; background: #222; }
       a { color: #d4af37; text-decoration: none; font-weight: bold; margin-right: 15px; }
       .btn { background: #d4af37; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; cursor: pointer; border: none; }
+      input { padding: 10px; border-radius: 5px; border: 1px solid #333; background: #111; color: #fff; width: 60%; }
   </style>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -58,11 +59,27 @@ INDEX_HTML = """
           </script>
       </div>
   {% else %}
-      <div class="box">
-          <h3>Jesteś zalogowany jako: {{ session['email'] }}</h3>
+      <div class="box" style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>Zalogowany: {{ session['email'] }}</h3>
           <form method="POST" action="/logout"><button class="btn">Wyloguj</button></form>
       </div>
       
+      <div class="box">
+          <h3>Parowanie Urządzenia (Device Key)</h3>
+          <form method="POST" action="/set_device_key" style="display:flex; gap:10px; align-items:center;">
+              <input type="text" name="device_key" value="{{ device_key }}" placeholder="np. Elvis_KWI_0326">
+              <button class="btn" type="submit">Sparuj Urządzenie</button>
+          </form>
+          <p style="color:#aaa; font-size:0.9em; margin-top:10px;">
+              Status połączenia z POS: 
+              {% if device_key %}
+                <span style="color:#4caf50; font-weight:bold;">SPAROWANO ({{ device_key }})</span>
+              {% else %}
+                <span style="color:#f44336; font-weight:bold;">BRAK PARY</span>
+              {% endif %}
+          </p>
+      </div>
+
       <div class="box">
           <h3>Ostatnie paragony (z chmury)</h3>
           <ul style="color:#aaa;">
@@ -87,9 +104,13 @@ IFRAME_HTML = """
 </html>
 """
 
+def get_device_key():
+    key_file = DATA_DIR / "device_key.txt"
+    return key_file.read_text().strip() if key_file.exists() else ""
+
 @app.route("/")
 def index():
-    return render_template_string(INDEX_HTML, session=session, client_id=GOOGLE_CLIENT_ID, receipts=receipts_log[-10:])
+    return render_template_string(INDEX_HTML, session=session, client_id=GOOGLE_CLIENT_ID, receipts=receipts_log[-10:], device_key=get_device_key())
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -118,9 +139,27 @@ def logout():
     session.clear()
     return redirect(url_for("index"))
 
+@app.route("/set_device_key", methods=["POST"])
+def set_device_key():
+    if session.get('email') != MASTER_EMAIL: return "Unauthorized", 401
+    dk = request.form.get("device_key", "").strip()
+    (DATA_DIR / "device_key.txt").write_text(dk)
+    # Restart the background thread or simply exit so Docker/systemd restarts the process
+    os._exit(1)
+    return redirect(url_for("index"))
+
+@app.route("/api/device_identity")
+def device_identity():
+    dk = get_device_key()
+    return jsonify({
+        "ok": True,
+        "serial_number": os.environ.get("FALLBACK_SN", "RPI4-UNKNOWN"),
+        "device_key": dk,
+        "pubsub_topic": f"devices/{dk}" if dk else ""
+    })
+
 @app.route("/kds")
 def kds():
-    # Zwraca iframe do chmurowego widoku KDS (który obsługuje własne hasło over WebSocket/API)
     url = f"{CLOUD_BASE_URL}/kds"
     return render_template_string(IFRAME_HTML, url=url)
 
@@ -131,11 +170,18 @@ def wydawka():
 
 # --- BACKGROUND WEBSOCKET CLIENT ---
 async def ws_client_task():
+    dk = get_device_key()
     ws_url = CLOUD_BASE_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
+    if dk: ws_url += f"?device_key={dk}"
+    
     while True:
+        if not get_device_key():
+            await asyncio.sleep(5)
+            continue
+            
         try:
             async with websockets.connect(ws_url) as ws:
-                print(f"[RPi] Połączono z chmurą: {ws_url}")
+                print(f"[RPi] Pomyślnie połączono z serwerem i sparowano bramkę z: {ws_url}")
                 while True:
                     msg = await ws.recv()
                     data = json.loads(msg)
@@ -144,7 +190,6 @@ async def ws_client_task():
                         orders = data.get("orders", [])
                         print(f"[RPi FISKALNE] Numer stolika: {table}, pozycje: {len(orders)}")
                         receipts_log.append(f"Stolik {table} - paragon odebrany ({len(orders)} pozycji)")
-                        # TODO: TUTAJ WYSYŁKA NA DRUKARKĘ (np. thermal printer)
         except Exception as e:
             print(f"[RPi] Błąd WS: {e}. Ponawiam za 5s...")
             await asyncio.sleep(5)
