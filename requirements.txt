@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 jinja2
-google-cloud-firestore
 requests
-pydantic
+google-cloud-firestore
 python-multipart

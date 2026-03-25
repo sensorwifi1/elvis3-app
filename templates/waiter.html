@@ -2,130 +2,286 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>SALA - PANEL KELNERA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>burger.zjedz.it - PANEL KELNERA</title>
     <style>
-        :root { --gold: #d4af37; --bg: #050505; }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden;}
-        .floor-container { flex: 1; padding: 20px; display: flex; flex-direction: column;}
-        .floor-plan { background: #111; position: relative; border: 2px dashed #333; margin: 0 auto; border-radius: 15px; flex: 1; min-width: 600px; }
-        .table-rect { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid rgba(0,0,0,0.5); width: 70px; height: 70px; font-size: 1.2em; }
-        .t-free { background: #388e3c; } .t-open { background: #fbc02d; color: #000; } .t-issued { background: #d32f2f; } .t-paid { background: #03a9f4; }
-        .call { animation: pulseCall 1s infinite alternate; border: 3px solid #fff; }
-        .pay { animation: pulsePay 1s infinite alternate; border: 3px solid #fff; }
-        @keyframes pulseCall { from { background: #2196f3; } to { background: #64b5f6; } }
-        @keyframes pulsePay { from { background: #9c27b0; } to { background: #ba68c8; } }
-        .sidebar { width: 400px; background: #151515; border-left: 1px solid #333; display: flex; flex-direction: column; }
-        .order-list { flex: 1; overflow-y: auto; padding: 20px; }
-        .order-item { background: #222; padding: 15px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid var(--gold); }
-        .btn-act { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; }
-        .btn-pay { background: #8e24aa; color: white; width: 100%; padding: 15px; border: none; font-weight: bold; cursor: pointer; border-radius: 8px; margin-bottom: 10px;}
-        .btn-close { background: #b71c1c; color: white; width: 100%; padding: 20px; border: none; font-weight: bold; cursor: pointer;}
+        :root { 
+            --gold: #d4af37; --bg: #050505; --card: #121212;
+            --green: #2e7d32; --red: #c62828; --purple: #7b1fa2; --blue: #0288d1;
+        }
+        body { 
+            background: var(--bg); color: #fff; 
+            font-family: -apple-system, Segoe UI, Roboto, sans-serif; 
+            margin: 0; display: flex; height: 100vh; overflow: hidden;
+        }
+        @media (max-width: 900px) { body { flex-direction: column; overflow-y: auto; height: auto; } }
+
+        /* LEWA STRONA: MAPA SALI */
+        .floor-container { flex: 1; padding: 15px; display: flex; flex-direction: column; min-height: 450px; }
+        .floor-plan { 
+            background: #0a0a0a; position: relative; border: 1px solid #333; 
+            margin: 0 auto; border-radius: 20px; flex: 1; 
+            box-shadow: inset 0 0 30px #000;
+        }
+
+        .table-rect { 
+            position: absolute; display: flex; align-items: center; justify-content: center; 
+            border-radius: 15px; font-weight: bold; cursor: pointer; 
+            width: 65px; height: 65px; font-size: 1.2em; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .table-rect:active { transform: scale(0.92); }
+
+        .t-free { background: var(--green); } 
+        .t-open { background: #fbc02d; color: #000; } 
+        .t-issued { background: var(--red); } 
+        .t-paid { background: var(--blue); }
+
+        .call { animation: pulseCall 1s infinite alternate; border: 3px solid #fff !important; z-index: 10; }
+        .pay { animation: pulsePay 1s infinite alternate; border: 3px solid #fff !important; z-index: 10; }
+        @keyframes pulseCall { from { background: #1976d2; } to { background: #64b5f6; } }
+        @keyframes pulsePay { from { background: #8e24aa; } to { background: #e1bee7; } }
+
+        /* PRAWA STRONA: SIDEBAR */
+        .sidebar { 
+            width: 420px; background: var(--card); 
+            border-left: 1px solid #222; display: flex; flex-direction: column;
+            height: 100vh; position: relative;
+        }
+        @media (max-width: 900px) { .sidebar { width: 100%; height: auto; border-left: none; border-top: 2px solid var(--gold); } }
+
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #222; text-align: center; }
+        .order-list { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 180px; }
+        .order-item { 
+            background: #1a1a1a; padding: 15px; border-radius: 12px; 
+            margin-bottom: 12px; border-left: 4px solid var(--gold);
+        }
+
+        .sidebar-footer {
+            position: absolute; bottom: 0; width: 100%;
+            background: #0a0a0a; border-top: 1px solid #333;
+            padding: 15px; box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        @media (max-width: 900px) { .sidebar-footer { position: static; } }
+
+        .total-display { font-size: 1.6em; font-weight: bold; color: var(--gold); text-align: center; }
+        .btn-pos { padding: 16px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; text-transform: uppercase; transition: 0.2s; }
+        .btn-pos:active { transform: scale(0.95); opacity: 0.8; }
+        .btn-pay { background: var(--purple); width: 100%; }
+        .btn-clean { background: var(--red); width: 100%; }
+        .btn-issue { background: var(--green); padding: 8px 15px; border-radius: 5px; border: none; color: white; font-weight: bold; cursor: pointer; }
+        .btn-del { background: #333; color: #ff5252; border: none; padding: 8px; border-radius: 5px; cursor: pointer; }
+
+        /* DUSZEK (TOAST) */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #222; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; left: 50%; bottom: 30px; transform: translateX(-50%); border: 1px solid var(--gold); box-shadow: 0px 4px 15px rgba(0,0,0,0.5); font-weight: bold; opacity: 0; transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
     </style>
 </head>
 <body>
+
+    <div id="toast">Komunikat...</div>
+
     <div class="floor-container">
-        <h2 style="color:var(--gold); text-align: center;">🛎️ WIDOK SALI</h2>
+        <h2 style="color:var(--gold); text-align: center; margin: 10px 0;">🛎️ SALA / OBSŁUGA</h2>
+        
+        <div style="display:flex; justify-content:center; gap:15px; margin-bottom:15px; font-size:0.8em; color:#ccc; flex-wrap:wrap;">
+            <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:var(--green); border-radius:3px;"></div> Wolny</span>
+            <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:#fbc02d; border-radius:3px;"></div> Zajęty</span>
+            <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:#1976d2; border-radius:3px;"></div> Kelner</span>
+            <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:#8e24aa; border-radius:3px;"></div> Rachunek</span>
+            <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:var(--red); border-radius:3px;"></div> Do wydania</span>
+        </div>
+
         <div id="floor" class="floor-plan"></div>
     </div>
+
     <div class="sidebar">
-        <div style="padding:20px; border-bottom:1px solid #333;"><h2 id="sb-title" style="margin:0; color:var(--gold);">STOLIK</h2></div>
-        <div id="sb-orders" class="order-list"></div>
-        <div id="sb-actions" style="display:none; padding: 15px; background: #111;">
-            <button class="btn-pay" onclick="markAsPaid()">💰 OZNACZ JAKO OPŁACONE</button>
-            <button class="btn-close" onclick="closeTable()">🧹 POSPRZĄTAJ STOLIK</button>
+        <div class="sidebar-header">
+            <h2 id="sb-title" style="margin:0; color:var(--gold);">WYBIERZ STOLIK</h2>
+        </div>
+
+        <div id="sb-orders" class="order-list">
+            <p style="text-align:center; color:#666; margin-top:50px;">Kliknij w stolik na mapie.</p>
+        </div>
+
+        <div id="sidebar-footer" class="sidebar-footer" style="display:none;">
+            <div id="total-amount" class="total-display">0.00 zł</div>
+            <button class="btn-pos btn-pay" onclick="markAsPaid()">💰 RACHUNEK OPŁACONY</button>
+            <button class="btn-pos btn-clean" onclick="closeTable()">🧹 POSPRZĄTAJ STOLIK</button>
         </div>
     </div>
 
     <script>
-        let layout = { tables: [] }; let activeTables = []; let allOrders = []; let selectedTable = null;
+        let layout = { width: 10, height: 10, tables: [] }; 
+        let activeTables = []; 
+        let allOrders = []; 
+        let selectedTable = null;
+        const SCALE = 70;
+
+        const statusMap = {
+            "nowe": "W kolejce",
+            "preparing": "Smaży się",
+            "ready": "GOTOWE!",
+            "closed": "Wydane"
+        };
+
+        // FUNKCJA DUSZKA
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.classList.add("show");
+            setTimeout(() => { toast.classList.remove("show"); }, 3000);
+        }
 
         async function refresh() {
             try {
-                const [l, a, o] = await Promise.all([fetch('/api/get_layout'), fetch('/api/active_tables'), fetch('/api/all_orders')]);
-                layout = await l.json(); activeTables = (await a.json()).tables; allOrders = (await o.json()).orders;
-                draw(); if(selectedTable) renderSidebar(selectedTable);
-            } catch(e) { console.error(e); }
+                const [l, a, o] = await Promise.all([
+                    fetch('/api/get_layout'), fetch('/api/active_tables'), fetch('/api/all_orders')
+                ]);
+                layout = await l.json(); 
+                activeTables = (await a.json()).tables || []; 
+                allOrders = (await o.json()).orders || [];
+                draw();
+                if(selectedTable) renderSidebar(selectedTable);
+            } catch(e) { console.error("Refresh Error", e); }
         }
 
         function draw() {
-            const f = document.getElementById('floor'); f.innerHTML = '';
+            const f = document.getElementById('floor'); 
+            f.style.width = (layout.width * SCALE) + 'px';
+            f.style.height = (layout.height * SCALE) + 'px';
+            f.innerHTML = '';
+
             layout.tables.forEach(t => {
-                const act = activeTables.find(a => a.table_number == t.n);
-                const orders = allOrders.filter(o => o.table_number == t.n && o.session_id === act?.session_id);
+                const act = activeTables.find(a => String(a.table_number) === String(t.n));
+                const orders = allOrders.filter(o => String(o.table_number) === String(t.n) && o.session_id === act?.session_id);
+                
                 let cls = 't-free';
                 if(act) {
                     cls = 't-open';
-                    if(orders.length > 0 && orders.every(o => o.paid)) cls = 't-paid';
-                    else if(orders.length > 0 && orders.every(o => o.status === 'closed')) cls = 't-issued';
+                    if(orders.length > 0) {
+                        if(orders.every(o => o.paid)) cls = 't-paid';
+                        else if(orders.every(o => o.status === 'closed')) cls = 't-issued';
+                    }
                 }
+
                 const div = document.createElement('div');
                 div.className = `table-rect ${cls}`;
-                div.style.left = (t.x * 80) + 'px'; div.style.top = (t.y * 80) + 'px';
+                div.style.left = (t.x * SCALE) + 'px'; 
+                div.style.top = (t.y * SCALE) + 'px';
                 div.innerText = t.n;
+
                 if(act?.call_waiter) div.classList.add('call');
                 if(act?.pay_request) div.classList.add('pay');
+
                 div.onclick = () => { selectedTable = t.n; renderSidebar(t.n); };
                 f.appendChild(div);
             });
         }
 
         function renderSidebar(n) {
-    const act = activeTables.find(a => a.table_number == n);
-    document.getElementById('sb-title').innerText = `STÓŁ NR ${n}`;
-    document.getElementById('sb-actions').style.display = act ? 'block' : 'none';
-    
-    // FILTR 1: Tylko zamówienia z TEJ sesji, które NIE są jeszcze opłacone
-    const toPayOrders = allOrders.filter(o => 
-        o.table_number == n && 
-        o.session_id === act?.session_id && 
-        o.paid === false
-    );
-    
-    let html = ''; 
-    let total = 0;
-    
-    toPayOrders.forEach(o => {
-        total += parseFloat(o.price);
-        const isKitchen = (o.to_kitchen === true || o.to_kitchen === "true" || o.to_kitchen === "True");
-        const canIssue = !isKitchen || o.status === 'ready';
+            const act = activeTables.find(a => String(a.table_number) === String(n));
+            document.getElementById('sb-title').innerText = `STÓŁ NR ${n}`;
+            document.getElementById('sidebar-footer').style.display = act ? 'flex' : 'none';
 
-        html += `<div class="order-item">
-            <b>${o.burger_name}</b> - ${o.price} zł 
-            <div style="font-size:0.8em; color:var(--gold); margin:5px 0;">Status: ${o.status_pl}</div>
-            <div style="display:flex; gap:5px;">
-                ${(canIssue && o.status !== 'closed') ? 
-                    `<button class="btn-act" style="background:#388e3c; flex:2;" onclick="upd('${o.id}', 'closed')">WYDAJ</button>` : 
-                    `<button class="btn-act" style="background:#444; flex:2;" disabled>${o.status === 'closed' ? 'WYDANE' : 'CZEKAJ'}</button>`
-                }
-                <button class="btn-act" style="background:#b71c1c; flex:1;" onclick="del('${o.id}')">USUŃ</button>
-            </div>
-        </div>`;
-    });
+            const currentOrders = allOrders.filter(o => String(o.table_number) === String(n) && o.session_id === act?.session_id);
+            const displayOrders = currentOrders.filter(o => !o.paid || o.status !== 'closed');
 
-    // Wyświetlanie
-    if (toPayOrders.length === 0) {
-        document.getElementById('sb-orders').innerHTML = `
-            <div style="text-align:center; padding:20px;">
-                <h3 style="color:#4caf50;">Wszystko opłacone! 💰</h3>
-                <p style="color:#888;">Stolik może domawiać dalej.</p>
-            </div>`;
-    } else {
-        document.getElementById('sb-orders').innerHTML = html;
-    }
-    
-    // Suma zawsze na dole - po kliknięciu "Opłacone" total będzie 0
-    document.getElementById('sb-orders').innerHTML += `
-        <h2 style="text-align:center; border-top:1px solid #444; padding-top:10px; color:var(--gold);">
-            DO ZAPŁATY: ${total.toFixed(2)} zł
-        </h2>`;
-}
+            let html = ''; 
+            let total = 0;
 
-        const upd = (id, s) => fetch(`/api/update_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}).then(refresh);
-        const del = (id) => confirm("Usunąć pozycję?") && fetch(`/api/orders/${id}`, {method:'DELETE'}).then(refresh);
-        const markAsPaid = () => fetch(`/api/mark_paid/${selectedTable}`, {method:'POST'}).then(refresh);
-        const closeTable = () => confirm("Posprzątać stolik?") && fetch(`/api/clear_table/${selectedTable}`, {method:'POST'}).then(() => { selectedTable=null; refresh(); });
+            displayOrders.forEach(o => {
+                if(!o.paid) total += parseFloat(o.price);
+                const isKitchen = (o.to_kitchen === true || o.to_kitchen === "true");
+                const canIssue = !isKitchen || o.status === 'ready';
 
-        refresh(); setInterval(refresh, 3000);
+                html += `
+                <div class="order-item">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                        <span>${o.burger_name}</span>
+                        <span>${o.price.toFixed(2)} zł</span>
+                    </div>
+                    <div style="font-size:0.85em; color:var(--gold); margin:8px 0;">Status: ${statusMap[o.status] || o.status}</div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        ${(canIssue && o.status !== 'closed') ? 
+                            `<button class="btn-issue" onclick="upd('${o.id}', 'closed')">WYDAJ DO STOŁU</button>` : 
+                            `<span style="color:#666; font-size:0.8em;">${o.status === 'closed' ? '✅ WYDANO' : '⏳ CZEKA NA KUCHNIĘ'}</span>`
+                        }
+                        <button class="btn-del" onclick="del('${o.id}')">USUŃ</button>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('sb-orders').innerHTML = (act && displayOrders.length === 0) ? 
+                '<div style="text-align:center; padding:30px; color:#4caf50;">Wszystko rozliczone! 💰<br><small>Stolik można teraz posprzątać.</small></div>' : 
+                (act ? html : '<p style="text-align:center; color:#666; margin-top:50px;">Stolik jest wolny.</p>');
+            
+            document.getElementById('total-amount').innerText = `SUMA: ${total.toFixed(2)} zł`;
+
+            if(act?.call_waiter || act?.pay_request) {
+                fetch(`/api/reset_call/${n}`, {method:'POST'});
+            }
+        }
+
+        async function upd(id, s) {
+            await fetch(`/api/update_status/${id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s}) });
+            await refresh();
+        }
+
+        async function del(id) {
+            if(confirm("Usunąć pozycję z rachunku?")) {
+                await fetch(`/api/orders/${id}`, {method:'DELETE'});
+                showToast("🗑️ Pozycja usunięta.");
+                await refresh();
+            }
+        }
+        
+        async function markAsPaid() {
+            const btn = document.querySelector('.btn-pay');
+            btn.innerText = "OPŁACANIE...";
+            await fetch(`/api/mark_paid/${selectedTable}`, {method:'POST'});
+            showToast("💰 Rachunek opłacony!");
+            btn.innerText = "💰 RACHUNEK OPŁACONY";
+            await refresh();
+        }
+        
+        // NAPRAWIONE POSPRZĄTANIE STOLIKA (AWAIT NA USUNIĘCIE)
+        async function closeTable() {
+            if(!confirm("Czy stolik jest posprzątany i gotowy na nowych gości?")) return;
+            
+            const btn = document.querySelector('.btn-clean');
+            btn.innerText = "SPRZĄTANIE...";
+
+            const tableToClear = selectedTable;
+            selectedTable = null; // Ukrywamy sidebar kelnera
+
+            // Wizualny reset sidebaru od razu po kliknięciu
+            document.getElementById('sidebar-footer').style.display = 'none';
+            document.getElementById('sb-orders').innerHTML = '<p style="text-align:center; color:#666; margin-top:50px;">Kliknij w stolik na mapie.</p>';
+            document.getElementById('sb-title').innerText = "WYBIERZ STOLIK";
+
+            try {
+                // Czekamy potulnie aż serwer przetworzy każde żądanie po kolei
+                await fetch(`/api/mark_paid/${tableToClear}`, {method:'POST'});
+                await fetch(`/api/reset_call/${tableToClear}`, {method:'POST'});
+                await fetch(`/api/clear_table/${tableToClear}`, {method:'POST'});
+                
+                showToast(`🧹 Stolik nr ${tableToClear} posprzątany!`);
+                await refresh(); // Odświeżamy mapę dopiero po wyrzuceniu stolika z bazy
+            } catch(e) {
+                showToast("❌ Błąd podczas zwalniania stolika!");
+            } finally {
+                btn.innerText = "🧹 POSPRZĄTAJ STOLIK";
+            }
+        }
+
+        refresh(); 
+        setInterval(refresh, 3000);
     </script>
 </body>
 </html>

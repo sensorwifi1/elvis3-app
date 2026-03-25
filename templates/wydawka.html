@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Wydawki (Expo)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        
+        .pulse-yellow { animation: pulse-yellow 1.5s infinite; }
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(234, 179, 8, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+        }
+        
+        .pulse-red { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .table-node { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 2px solid rgba(0,0,0,0.3); font-size: 0.8rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        .table-node:active { transform: scale(0.9); }
+        
+        .ticket-compact { font-size: 0.85rem; line-height: 1.2; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen overflow-hidden flex flex-col font-sans text-sm">
+
+    <header class="bg-gray-800 p-3 shadow-md flex justify-between items-center border-b border-gray-700 shrink-0">
+        <div class="flex items-center gap-6">
+            <h1 class="text-xl font-bold text-gray-100 flex items-center">
+                <span class="bg-blue-600 text-white px-2 py-1 rounded mr-2 text-xs shadow">EXPO</span>
+                Panel Wydawki
+            </h1>
+            <div class="flex gap-3 text-[11px] uppercase font-bold tracking-wider">
+                <div class="bg-gray-900 px-3 py-1.5 rounded border border-gray-600 shadow-inner">
+                    Oczekujące: <span id="count-new" class="text-white text-sm ml-1">0</span>
+                </div>
+                <div class="bg-orange-900/30 px-3 py-1.5 rounded border border-orange-700/50 shadow-inner">
+                    W kuchni: <span id="count-prep" class="text-orange-400 text-sm ml-1">0</span>
+                </div>
+                <div class="bg-green-900/30 px-3 py-1.5 rounded border border-green-700/50 shadow-inner">
+                    Do wydania: <span id="count-ready" class="text-green-400 text-sm ml-1">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSettings()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded border border-gray-500 text-xs font-bold transition-all shadow">
+                ⚙️ KONFIGURACJA POS
+            </button>
+            <div class="text-gray-300 font-mono text-lg bg-black px-3 py-1 rounded border border-gray-700 shadow-inner" id="clock">00:00:00</div>
+        </div>
+    </header>
+
+    <div class="flex-1 grid grid-cols-12 gap-3 p-3 overflow-hidden">
+
+        <div class="col-span-3 bg-gray-800 rounded-xl flex flex-col border border-gray-700 overflow-hidden shadow-2xl">
+            <div class="bg-gray-700/50 p-2 font-bold text-center border-b border-gray-600 text-xs tracking-widest">🛒 KASA (WYNOS)</div>
+            
+            <div class="p-2 grid grid-cols-2 gap-2 overflow-y-auto h-[45%] shrink-0 border-b border-gray-700" id="menu-grid">
+                </div>
+            
+            <div class="flex-1 flex flex-col bg-gray-900 overflow-hidden">
+                <div class="text-[10px] text-gray-500 p-2 font-bold uppercase tracking-widest bg-gray-950">Twój Koszyk:</div>
+                <div class="flex-1 overflow-y-auto p-2 space-y-1.5" id="cart-items"></div>
+                <div class="p-3 bg-gray-800 border-t border-gray-700 shadow-inner">
+                    <div class="flex justify-between font-black text-lg mb-2">
+                        <span>SUMA:</span>
+                        <span id="cart-total" class="text-yellow-500">0.00 zł</span>
+                    </div>
+                    <button onclick="submitCart()" class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold transition-all text-xs tracking-wider shadow-lg">
+                        WYŚLIJ ZAMÓWIENIE (WYNOS)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-6 bg-gray-800 rounded-xl flex flex-col border border-gray-700 overflow-hidden shadow-2xl">
+            <div class="bg-gray-700/50 p-2 font-bold text-center border-b border-gray-600 text-xs tracking-widest">🧾 AKTYWNE BONY</div>
+            <div class="flex-1 grid grid-cols-2 gap-3 p-3 overflow-y-auto align-start content-start">
+                
+                <div class="flex flex-col gap-3">
+                    <h2 class="text-yellow-500 font-black text-[10px] uppercase tracking-widest border-b border-yellow-900/50 pb-1 flex justify-between">
+                        <span>W Przygotowaniu</span>
+                    </h2>
+                    <div id="bony-unpaid" class="space-y-3"></div>
+                </div>
+                
+                <div class="flex flex-col gap-3">
+                    <h2 class="text-green-500 font-black text-[10px] uppercase tracking-widest border-b border-green-900/50 pb-1 flex justify-between">
+                        <span>Gotowe (Wydawka)</span>
+                    </h2>
+                    <div id="bony-ready" class="space-y-3"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-span-3 bg-gray-800 rounded-xl flex flex-col border border-gray-700 overflow-hidden shadow-2xl">
+            <div class="bg-gray-700/50 p-2 font-bold text-center border-b border-gray-600 text-xs tracking-widest flex justify-between px-4 items-center">
+                <span>🗺️ SALA</span>
+                <span id="pos-status-indicator" class="text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800">POS ROZŁĄCZONY</span>
+            </div>
+            
+            <div class="flex flex-wrap gap-2 text-[9px] justify-center bg-gray-900 p-2 border-b border-gray-700 font-bold text-gray-400">
+                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-green-700 rounded-sm"></div> Wolny</span>
+                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-blue-800 rounded-sm"></div> Zajęty</span>
+                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-red-600 rounded-sm"></div> Kelner</span>
+                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-yellow-600 rounded-sm"></div> Rachunek</span>
+                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-purple-800 rounded-sm"></div> Brudny</span>
+            </div>
+
+            <div class="p-4 flex-1 relative overflow-auto bg-gray-950">
+                <div id="floor-map" class="relative mx-auto border border-gray-800/50 bg-black/50 rounded-lg shadow-inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-settings" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-gray-800 border border-gray-600 rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h2 class="text-xl font-bold mb-2 text-gold">Konfiguracja Elvis POS</h2>
+            <p class="text-gray-400 text-xs mb-4">Połącz panel z lokalną bramką Raspberry Pi (Drukarka Fiskalna).</p>
+            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Adres URL Bramki:</label>
+            <input type="text" id="pos-url-input" class="w-full bg-gray-900 border border-gray-600 p-3 rounded mt-1 mb-6 font-mono text-sm text-blue-300" placeholder="http://elvis.local:8080">
+            <div class="flex gap-3">
+                <button onclick="saveSettings()" class="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded font-bold transition-all shadow">ZAPISZ I TESTUJ</button>
+                <button onclick="toggleSettings()" class="flex-1 bg-gray-600 hover:bg-gray-500 py-3 rounded font-bold transition-all shadow">ANULUJ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let layoutData = { width: 10, height: 10, tables: [] };
+        let menuItems = {};
+        let currentCart = [];
+        let globalOrders = []; // Potrzebne do odświeżania zegarów
+        const MAP_SCALE = 42;
+
+        // ZEGAR GŁÓWNY I ODŚWIEŻANIE CZASU NA BONACH
+        setInterval(() => { 
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('pl-PL'); 
+            renderBony(globalOrders); // Ticking timerów na bonach!
+        }, 1000);
+
+        // --- KONFIGURACJA POS ---
+        function toggleSettings() { 
+            const m = document.getElementById('modal-settings');
+            m.classList.toggle('hidden');
+            if(!m.classList.contains('hidden')) {
+                document.getElementById('pos-url-input').value = localStorage.getItem('pos_url') || 'http://elvis.local:8080';
+            }
+        }
+
+        async function saveSettings() {
+            const url = document.getElementById('pos-url-input').value;
+            localStorage.setItem('pos_url', url);
+            toggleSettings();
+            checkPosStatus();
+        }
+
+        async function checkPosStatus() {
+            const url = localStorage.getItem('pos_url');
+            const indicator = document.getElementById('pos-status-indicator');
+            if(!url) return;
+            try {
+                // Szybki ping do bramki (Timeout 2s żeby nie zawiesić strony)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2000);
+                const res = await fetch(`${url}/api/device_identity`, { signal: controller.signal });
+                
+                if(res.ok) {
+                    const data = await res.json();
+                    indicator.innerHTML = `POS: ${data.device_key || 'POŁĄCZONY'}`;
+                    indicator.className = "text-[9px] bg-green-900/50 text-green-400 px-2 py-0.5 rounded border border-green-800 shadow";
+                }
+            } catch(e) {
+                indicator.innerText = "POS: BŁĄD POŁĄCZENIA";
+                indicator.className = "text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800 shadow";
+            }
+        }
+
+        // --- OBSŁUGA DANYCH GŁÓWNYCH ---
+        async function loadData() {
+            try {
+                const [lRes, aRes, oRes] = await Promise.all([
+                    fetch('/api/get_layout').then(r => r.json()),
+                    fetch('/api/active_tables').then(r => r.json()),
+                    fetch('/api/all_orders').then(r => r.json())
+                ]);
+
+                layoutData = lRes;
+                globalOrders = oRes.orders || [];
+                const actives = aRes.tables || [];
+
+                // 1. Liczniki w nagłówku (tylko nieopłacone)
+                const activeOrders = globalOrders.filter(o => !o.paid);
+                document.getElementById('count-new').innerText = activeOrders.filter(o => o.status === 'nowe').length;
+                document.getElementById('count-prep').innerText = activeOrders.filter(o => o.status === 'preparing').length;
+                document.getElementById('count-ready').innerText = activeOrders.filter(o => o.status === 'ready').length;
+
+                drawMap(actives, globalOrders);
+                renderBony(globalOrders);
+                
+            } catch(e) { console.error("Sync error", e); }
+        }
+
+        // --- MAPA I BRUDNE STOLIKI ---
+        function drawMap(actives, orders) {
+            const f = document.getElementById('floor-map');
+            f.style.width = (layoutData.width * MAP_SCALE) + 'px';
+            f.style.height = (layoutData.height * MAP_SCALE) + 'px';
+            f.innerHTML = '';
+
+            layoutData.tables.forEach(t => {
+                const act = actives.find(a => String(a.table_number) === String(t.n));
+                const tableOrders = orders.filter(o => String(o.table_number) === String(t.n) && o.session_id === act?.session_id);
+                
+                let statusClass = 'bg-gray-800 text-gray-500 border-gray-700'; // Domyślnie Wolny
+                let label = t.n;
+
+                if (act) {
+                    const hasOrders = tableOrders.length > 0;
+                    const allPaid = hasOrders && tableOrders.every(o => o.paid === True || o.paid === true);
+                    
+                    if (allPaid) {
+                        // ZAPŁACONE - BRUDNY STOLIK (Czeka na sprzątanie)
+                        statusClass = 'bg-purple-800 text-purple-100 border-purple-500 shadow-lg shadow-purple-900/50';
+                        label = `${t.n} 🧹`;
+                    } else if (act.pay_request) {
+                        statusClass = 'bg-yellow-600 text-yellow-900 border-yellow-400 pulse-yellow z-10';
+                        label = `${t.n} 💳`;
+                    } else if (act.call_waiter) {
+                        statusClass = 'bg-red-600 text-red-100 border-red-400 pulse-red z-10';
+                        label = `${t.n} 🛎️`;
+                    } else {
+                        // ZAJĘTY, W TRAKCIE
+                        statusClass = 'bg-blue-800 text-blue-100 border-blue-500';
+                    }
+                }
+
+                const div = document.createElement('div');
+                div.className = `table-node ${statusClass}`;
+                div.style.width = (MAP_SCALE - 4) + 'px';
+                div.style.height = (MAP_SCALE - 4) + 'px';
+                div.style.left = (t.x * MAP_SCALE) + 'px';
+                div.style.top = (t.y * MAP_SCALE) + 'px';
+                div.innerHTML = `<span>${label}</span>`;
+                
+                // Zwalnianie stolika kliknięciem (np. przez Kelnera/Wydawkę)
+                if(statusClass.includes('purple')) {
+                    div.onclick = () => clearTable(t.n);
+                }
+                
+                f.appendChild(div);
+            });
+        }
+
+        async function clearTable(num) {
+            if(confirm(`Czy stolik ${num} został posprzątany i jest gotowy na nowych gości?`)) {
+                await fetch(`/api/clear_table/${num}`, { method: 'POST' });
+                loadData();
+            }
+        }
+
+        // --- BONY KUCHENNE ---
+        function renderBony(allOrders) {
+            const unpaidCont = document.getElementById('bony-unpaid');
+            const readyCont = document.getElementById('bony-ready');
+            unpaidCont.innerHTML = ''; readyCont.innerHTML = '';
+
+            const groups = {};
+            // Filtrujemy opłacone zamówienia! Jeśli zapłacone, znika z wydawki.
+            allOrders.filter(o => o.status !== 'closed' && o.table_number !== "0" && !o.paid).forEach(o => {
+                if(!groups[o.table_number]) groups[o.table_number] = { orders: [], total: 0, ready: true };
+                groups[o.table_number].orders.push(o);
+                groups[o.table_number].total += parseFloat(o.price);
+                if(o.status !== 'ready') groups[o.table_number].ready = false;
+            });
+
+            for(const [tbl, data] of Object.entries(groups)) {
+                const firstTimestamp = data.orders.length > 0 ? data.orders[data.orders.length-1].timestamp : null;
+                const timerText = getTimerText(firstTimestamp);
+
+                const html = `
+                    <div class="bg-gray-800 border border-gray-600 rounded-lg overflow-hidden ticket-compact shadow-xl relative">
+                        <div class="bg-gray-700 p-1.5 flex justify-between items-center px-3 border-b border-gray-600">
+                            <span class="font-black text-blue-300 tracking-wider">STÓŁ ${tbl}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-mono bg-black text-yellow-400 px-1.5 py-0.5 rounded shadow-inner border border-gray-600">⏱️ ${timerText}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="p-2 space-y-1.5 min-h-[50px] max-h-[30vh] overflow-y-auto bg-gray-900/50">
+                            ${data.orders.map(o => {
+                                let stColor = o.status === 'ready' ? 'text-green-400' : (o.status === 'preparing' ? 'text-orange-400' : 'text-gray-400');
+                                let icon = o.status === 'ready' ? '✓' : (o.status === 'preparing' ? '🔥' : '⏳');
+                                
+                                return `
+                                <div class="flex justify-between items-start border-b border-gray-700/50 pb-1.5">
+                                    <div class="flex flex-col">
+                                        <span class="${stColor} font-bold leading-tight">${icon} ${o.burger_name}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 shrink-0">
+                                        <span class="text-[10px] font-mono text-gray-400">${o.price.toFixed(2)} zł</span>
+                                        ${o.status === 'ready' 
+                                            ? `<button onclick="updateItem('${o.id}', 'closed')" class="bg-green-900/80 hover:bg-green-700 text-green-100 text-[9px] px-1.5 py-0.5 rounded border border-green-600 transition">WYDAJ</button>` 
+                                            : `<button onclick="updateItem('${o.id}', 'ready')" class="bg-gray-700 hover:bg-gray-600 text-gray-300 text-[9px] px-1.5 py-0.5 rounded border border-gray-500 transition">GOTOWE</button>`
+                                        }
+                                    </div>
+                                </div>`
+                            }).join('')}
+                        </div>
+                        
+                        <div class="p-2 bg-gray-800 border-t border-gray-700 flex gap-2">
+                            <button onclick="markPaid('${tbl}')" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-black py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">💳 ZAPŁAĆ (${data.total.toFixed(2)} zł)</button>
+                            ${data.ready ? `<button onclick="wydajCalyStol('${tbl}', '${data.orders[0].session_id}')" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">🍽️ WYDAJ STÓŁ</button>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                if(data.ready) readyCont.insertAdjacentHTML('beforeend', html);
+                else unpaidCont.insertAdjacentHTML('beforeend', html);
+            }
+        }
+
+        function getTimerText(ts) {
+            if(!ts) return "00:00";
+            const diff = Math.floor((new Date() - new Date(ts)) / 1000);
+            if(diff < 0) return "00:00";
+            const m = Math.floor(diff/60);
+            const s = (diff%60).toString().padStart(2,'0');
+            return `${m}:${s}`;
+        }
+
+        async function updateItem(itemId, status) {
+            await fetch(`/api/update_status/${itemId}`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: status})
+            });
+            loadData();
+        }
+
+        async function wydajCalyStol(tableNum, sessionId) {
+            await fetch(`/api/wydawka/wydaj_bon`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sessionId, table_number: tableNum })
+            });
+            loadData();
+        }
+
+        async function markPaid(num) {
+            // Serwer nadaje orderom status paid=true, przez co znikną z wydawki
+            // i jednocześnie stół robi się t-dirty (fioletowy)
+            await fetch(`/api/mark_paid/${num}`, { method: 'POST' });
+            
+            // Opcjonalnie tutaj można podpiąć fiskalizację do POS RPi
+            const posUrl = localStorage.getItem('pos_url');
+            if(posUrl) {
+                console.log(`Wysyłam paragon na ${posUrl} dla stolika ${num}`);
+                // fetch(`${posUrl}/api/print_receipt`, { method: 'POST', ... })
+            }
+            
+            loadData();
+        }
+
+        // --- MENU WYNOS Z OBRAZKAMI ---
+        async function loadMenu() {
+            const res = await fetch('/api/get_menu');
+            menuItems = await res.json();
+            const grid = document.getElementById('menu-grid');
+            grid.innerHTML = Object.entries(menuItems).map(([key, item]) => `
+                <button onclick="addToCart('${key}')" class="bg-gray-700 hover:bg-gray-600 p-1.5 rounded-lg border border-gray-600 flex flex-col items-center justify-between transition-transform active:scale-95 shadow-md">
+                    <div class="w-full h-12 bg-black rounded overflow-hidden mb-1">
+                        <img src="/static/images/${item.image}" onerror="this.style.display='none'" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity">
+                    </div>
+                    <span class="text-[10px] font-bold truncate w-full text-center px-1 text-gray-100">${item.name}</span>
+                    <span class="text-blue-400 text-[11px] font-black">${item.price} zł</span>
+                </button>
+            `).join('');
+        }
+
+        function addToCart(key) { currentCart.push(menuItems[key]); renderCart(); }
+
+        function renderCart() {
+            const cont = document.getElementById('cart-items');
+            let total = 0;
+            cont.innerHTML = currentCart.map((item, idx) => {
+                total += parseFloat(item.price);
+                return `<div class="flex justify-between items-center bg-gray-800 p-2 rounded-lg text-[11px] border border-gray-700 shadow-sm">
+                    <span class="font-bold text-gray-300 truncate">${item.name}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="text-yellow-500 font-mono">${item.price} zł</span>
+                        <button onclick="currentCart.splice(${idx},1);renderCart()" class="text-red-400 bg-red-900/30 px-1.5 rounded font-bold hover:bg-red-800 hover:text-white transition">✕</button>
+                    </div>
+                </div>`;
+            }).join('');
+            document.getElementById('cart-total').innerText = total.toFixed(2) + ' zł';
+        }
+
+        async function submitCart() {
+            if (currentCart.length === 0) return alert("Koszyk jest pusty!");
+            const session_id = "wynos_" + Math.random().toString(36).substr(2, 9);
+            for (const item of currentCart) {
+                await fetch('/api/orders', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        table_number: "0", burger_name: item.name, price: item.price,
+                        to_kitchen: item.to_kitchen !== undefined ? item.to_kitchen : true, session_id: session_id
+                    })
+                });
+            }
+            currentCart = []; renderCart(); loadData(); 
+        }
+
+        // --- START APLIKACJI ---
+        loadMenu();
+        loadData();
+        checkPosStatus();
+        setInterval(loadData, 4000); // Odświeżaj wszystko co 4 sekundy
+    </script>
+</body>
+</html>

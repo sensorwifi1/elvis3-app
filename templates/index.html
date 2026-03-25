@@ -46,15 +46,35 @@
             .menu-section { height: auto; overflow: visible; }
         }
 
-        #thank-you-screen { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100vh; width: 100%; background: #000; position: fixed; top: 0; left: 0; z-index: 9999; text-align: center; }
+        /* EKRANY INFORMACYJNE (Pełny ekran) */
+        .fullscreen-msg { display: none; flex-direction: column; justify-content: center; align-items: center; height: 100vh; width: 100%; background: #000; position: fixed; top: 0; left: 0; z-index: 9999; text-align: center; padding: 20px; box-sizing: border-box;}
+        
+        /* --- STYL DLA DUSZKA (TOAST) --- */
+        #toast {
+            visibility: hidden; min-width: 250px; background-color: #222; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; left: 50%; bottom: 30px; transform: translateX(-50%); border: 1px solid var(--gold); box-shadow: 0px 4px 15px rgba(0,0,0,0.5); font-weight: bold; opacity: 0; transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
     </style>
 </head>
 <body>
 
-    <div id="thank-you-screen">
+    <div id="toast">👻 POSZŁO DO KUCHNI! SMAŻYMY!</div>
+
+    <div id="thank-you-screen" class="fullscreen-msg">
         <h1 style="color:var(--gold); font-size:3em;">DZIĘKUJEMY! 🍔</h1>
         <p style="color:#aaa;">Stolik został posprzątany. Zapraszamy ponownie!</p>
-        <button onclick="location.reload()" style="background:var(--gold); border:none; padding:15px 30px; border-radius:10px; font-weight:bold; margin-top:20px;">NOWE ZAMÓWIENIE</button>
+        <button onclick="startNewOrder()" style="background:var(--gold); border:none; padding:15px 30px; border-radius:10px; font-weight:bold; margin-top:20px; cursor:pointer;">NOWE ZAMÓWIENIE</button>
+    </div>
+
+    <div id="locked-screen" class="fullscreen-msg">
+        <h1 style="color:#ff5252; font-size:3em;">STOLIK ZAJĘTY 🛑</h1>
+        <p style="color:#aaa;">Ten stolik obsługuje już inne urządzenie.<br>Jeśli to pomyłka, poproś obsługę o zresetowanie stolika.</p>
+        <button onclick="forceUnlock()" style="background:#333; color:#fff; border:1px solid #555; padding:10px 20px; border-radius:8px; margin-top:30px; cursor:pointer;">⚠️ Odblokuj (Reset Awaryjny)</button>
+    </div>
+
+    <div id="no-table-screen" class="fullscreen-msg">
+        <h1 style="color:var(--gold); font-size:2.5em;">ZESKANUJ KOD QR 📱</h1>
+        <p style="color:#aaa;">Aby złożyć zamówienie, zeskanuj kod QR ze swojego stolika.</p>
     </div>
 
     <div class="main-container" id="app-content">
@@ -66,8 +86,8 @@
 
         <div class="sidebar">
             <div class="action-btns">
-                <button class="btn-call" onclick="fetch('/api/call_waiter/{{session_table}}', {method:'POST'})">🛎️ KELNER</button>
-                <button class="btn-pay" onclick="fetch('/api/pay_request/{{session_table}}', {method:'POST'})">💳 RACHUNEK</button>
+                <button class="btn-call" onclick="fetch('/api/call_waiter/{{locked_num if table_locked else session_table}}', {method:'POST', cache:'no-store'})">🛎️ KELNER</button>
+                <button class="btn-pay" onclick="fetch('/api/pay_request/{{locked_num if table_locked else session_table}}', {method:'POST', cache:'no-store'})">💳 RACHUNEK</button>
             </div>
             <h4 style="margin:0 0 10px; font-size:0.8em; color:#555;">KOSZYK</h4>
             <div id="cart" class="cart-box"></div>
@@ -104,155 +124,210 @@
     </div>
 
     <script>
-        const tableId = "{{ session_table }}";
+        // === TWARDE ZMIENNE Z PYTHON (JINJA2) ===
+        // Używamy locked_num jeśli stolik jest zajęty, w przeciwnym razie session_table
+        const tableId = "{{ locked_num if table_locked else session_table }}"; 
         const mySession = "{{ my_session_id }}";
+        const isLocked = {{ 'true' if table_locked else 'false' }};
         const serverMenu = {{ menu | tojson | safe }};
-        const cart = {};
-        let currentProduct = null; let currentQty = 1;
+        
+        if (isLocked) {
+            document.getElementById('app-content').style.display = 'none';
+            document.getElementById('locked-screen').style.display = 'flex';
+        } else if (tableId === "None" || tableId === "") {
+            document.getElementById('app-content').style.display = 'none';
+            document.getElementById('no-table-screen').style.display = 'flex';
+        } else {
+            initApp();
+        }
 
-        function renderMenu() {
-            let html = '';
-            for (const [key, v] of Object.entries(serverMenu)) {
-                html += `<div class="card" onclick="openModal('${key}')">
-                    <img src="/static/images/${v.image}" onerror="this.src='https://via.placeholder.com/150'">
-                    <h4>${v.name}</h4><p>${v.price} zł</p></div>`;
+        // --- ZABÓJCA CIASTECZEK ---
+        function clearSessionCookie() {
+            document.cookie = 'burger_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        }
+
+        function startNewOrder() {
+            clearSessionCookie();
+            window.location.href = window.location.pathname + window.location.search;
+        }
+
+        // --- AWARYJNE ODBLOKOWANIE (TWARDE UDERZENIE) ---
+        async function forceUnlock() {
+            // Zabezpieczenie: Sprawdzamy czy Jinja wstrzyknął poprawny identyfikator
+            if (tableId === "None" || !tableId) {
+                alert("Nie mogę odblokować stolika, ponieważ system zgubił jego numer.");
+                return;
             }
-            document.getElementById('menu-grid').innerHTML = html;
-        }
 
-        function openModal(key) {
-            const v = serverMenu[key]; currentProduct = { key, ...v }; currentQty = 1;
-            document.getElementById('modalStory').innerText = "Historyk szuka faktów...";
-            fetch(`/api/get_story?item=${encodeURIComponent(v.name)}`).then(r => r.json()).then(d => document.getElementById('modalStory').innerText = d.story);
-            document.getElementById('modalImg').src = `/static/images/${v.image}`;
-            document.getElementById('modalTitle').innerText = v.name;
-            document.getElementById('modalDesc').innerText = v.description || "";
-            document.getElementById('modalAllergens').innerText = v.allergens ? "⚠️ " + v.allergens : "Brak alergenów";
-            document.getElementById('modalKcal').innerText = v.kcal ? "🔥 " + v.kcal + " kcal" : "";
-            document.getElementById('modalWeight').innerText = v.weight ? "⚖️ " + v.weight + "g" : "";
-            document.getElementById('modalPrice').innerText = v.price + " zł";
-            updateModalPrice();
-            document.getElementById('productModal').style.display = 'flex';
-        }
-
-        function closeModal() { document.getElementById('productModal').style.display = 'none'; }
-        function modQty(c) { if(currentQty + c >= 1) { currentQty += c; updateModalPrice(); } }
-        function updateModalPrice() { 
-            document.getElementById('modalQtyTxt').innerText = currentQty; 
-            document.getElementById('modalTotal').innerText = (currentProduct.price * currentQty).toFixed(2); 
-        }
-
-        function confirmAdd() {
-            const note = document.getElementById('modalNote').value;
-            const k = note ? `${currentProduct.key}_${Date.now()}` : currentProduct.key;
-            if(!cart[k]) cart[k] = { name: currentProduct.name, price: currentProduct.price, qty: 0, note };
-            cart[k].qty += currentQty; renderCart(); closeModal();
-        }
-
-        // Naprawiona funkcja renderCart
-function renderCart() {
-    let html = '';
-    let totalBasket = 0; 
-    for(const [k, v] of Object.entries(cart)) {
-        const lineTotal = parseFloat(v.price) * parseInt(v.qty);
-        totalBasket += lineTotal;
-        html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85em;">
-            <span>${v.qty}x ${v.name}</span>
-            <span>${lineTotal.toFixed(2)} zł <button style="color:red; background:none; border:none;" onclick="delete cart['${k}']; renderCart()">✕</button></span>
-        </div>`;
-    }
-    document.getElementById('cart').innerHTML = html || "<p style='color:#444;'>Pusto</p>";
-    // Aktualizacja przycisku z sumą
-    const btn = document.querySelector('.btn-order');
-    btn.innerText = totalBasket > 0 ? `ZAMAWIAM (${totalBasket.toFixed(2)} zł) 🚀` : "ZAMAWIAM 🚀";
-}
-
-// Naprawiona funkcja sendOrder - musi wysyłać session_id!
-async function sendOrder() {
-    const items = Object.entries(cart);
-    if (items.length === 0) {
-        alert("Koszyk jest pusty!");
-        return;
-    }
-
-    // Blokujemy przycisk, żeby nie kliknąć dwa razy
-    const orderBtn = document.querySelector('.btn-order');
-    orderBtn.disabled = true;
-    orderBtn.innerText = "WYSYŁANIE...";
-
-    try {
-        for (const [key, item] of items) {
-            // Wysyłamy każdą sztukę oddzielnie, aby KDS mógł je poprawnie grupować/rozdzielać
-            for (let i = 0; i < item.qty; i++) {
-                await fetch('/api/orders', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        table_number: tableId,
-                        burger_name: item.name,
-                        price: item.price,
-                        note: item.note,
-                        session_id: mySession // Przekazujemy sesję z Twojego urządzenia
-                    })
-                });
+            try {
+                // Uderzamy twardą ścieżką z wstrzykniętym identyfikatorem
+                const response = await fetch(`/api/clear_table/${tableId}`, {method: 'POST', cache: 'no-store'});
+                
+                if (response.ok) {
+                    clearSessionCookie();
+                    alert(`✅ Awaryjny reset stolika nr ${tableId} wykonany pomyślnie. Zostaniesz przekierowany do menu.`);
+                    // Po usunięciu ciasteczka odświeżamy stronę
+                    window.location.reload();
+                } else {
+                    console.error("Błąd resetu. Odpowiedź serwera:", await response.text());
+                    alert("❌ Serwer odmówił resetu. Prawdopodobnie stolik już został zresetowany.");
+                }
+            } catch(e) {
+                console.error("Błąd sieci podczas resetu:", e);
+                alert("❌ Brak połączenia z serwerem! Upewnij się, że masz internet.");
             }
-            delete cart[key]; // Usuwamy z koszyka po udanej wysyłce
         }
 
-        // --- EFEKT DUSZKA ---
-        const toast = document.getElementById('toast');
-        toast.innerHTML = "👻 POSZŁO DO KUCHNI! SMAŻYMY!";
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        function initApp() {
+            const cart = {};
+            let currentProduct = null; let currentQty = 1;
+            let hasSeenTableActive = false;
+            let missingCount = 0;
 
-        // Czyścimy UI
-        renderCart();
-        loadStatus(); // Odświeżamy listę zamówień (rachunek)
+            window.showToast = function(message) {
+                const toast = document.getElementById("toast");
+                toast.innerText = message;
+                toast.classList.add("show");
+                setTimeout(() => { toast.classList.remove("show"); }, 3000);
+            };
 
-    } catch (e) {
-        console.error("Błąd wysyłki:", e);
-        alert("Wystąpił błąd przy wysyłaniu zamówienia.");
-    } finally {
-        orderBtn.disabled = false;
-        orderBtn.innerText = "ZAMAWIAM 🚀";
-    }
-}
+            window.renderMenu = function() {
+                let html = '';
+                for (const [key, v] of Object.entries(serverMenu)) {
+                    html += `<div class="card" onclick="openModal('${key}')">
+                        <img src="/static/images/${v.image}" onerror="this.src='https://via.placeholder.com/150'">
+                        <h4>${v.name}</h4><p>${v.price} zł</p></div>`;
+                }
+                document.getElementById('menu-grid').innerHTML = html;
+            };
 
-       async function loadStatus() {
-    const tRes = await fetch('/api/active_tables');
-    const tData = await tRes.json();
-    const tInfo = tData.tables.find(t => t.table_number == tableId);
-    
-    // Jeśli sesja wygasła (posprzątane) -> ekran końcowy
-    if (!tInfo || tInfo.session_id !== mySession) {
-        document.getElementById('thank-you-screen').style.display = 'flex';
-        document.getElementById('app-content').style.display = 'none';
-        return;
-    }
+            window.openModal = function(key) {
+                const v = serverMenu[key]; currentProduct = { key, ...v }; currentQty = 1;
+                
+                document.getElementById('modalNote').value = ''; 
+                document.getElementById('modalStory').innerText = "Historyk szuka faktów...";
+                fetch(`/api/get_story?item=${encodeURIComponent(v.name)}&_=${Date.now()}`).then(r => r.json()).then(d => document.getElementById('modalStory').innerText = d.story);
+                
+                document.getElementById('modalImg').src = `/static/images/${v.image}`;
+                document.getElementById('modalTitle').innerText = v.name;
+                document.getElementById('modalDesc').innerText = v.description || "";
+                document.getElementById('modalAllergens').innerText = v.allergens ? "⚠️ " + v.allergens : "Brak alergenów";
+                document.getElementById('modalKcal').innerText = v.kcal ? "🔥 " + v.kcal + " kcal" : "";
+                document.getElementById('modalWeight').innerText = v.weight ? "⚖️ " + v.weight + "g" : "";
+                document.getElementById('modalPrice').innerText = v.price + " zł";
+                updateModalPrice();
+                document.getElementById('productModal').style.display = 'flex';
+            };
 
-    const res = await fetch('/api/all_orders');
-    const data = await res.json();
-    
-    // FILTRUJEMY: Tylko moje zamówienia z TEJ konkretnej sesji
-    const myActiveOrders = data.orders.filter(o => 
-        o.table_number == tableId && o.session_id === mySession
-    );
-    
-    let html = ''; let total = 0;
-    myActiveOrders.forEach(o => {
-        if(!o.paid) total += parseFloat(o.price);
-        html += `<div class="status-item">
-            <span>• ${o.burger_name}</span>
-            <b class="st-${o.status}">${o.paid ? '✅ Opłacone' : o.status_pl}</b>
-        </div>`;
-    });
+            window.closeModal = () => document.getElementById('productModal').style.display = 'none';
+            window.modQty = (c) => { if(currentQty + c >= 1) { currentQty += c; updateModalPrice(); } };
+            
+            function updateModalPrice() { 
+                document.getElementById('modalQtyTxt').innerText = currentQty; 
+                document.getElementById('modalTotal').innerText = (currentProduct.price * currentQty).toFixed(2); 
+            }
 
-    document.getElementById('order-status').innerHTML = html + 
-        `<h3 style="text-align:right; color:var(--gold); margin-top:10px;">SUMA: ${total.toFixed(2)} zł</h3>`;
-}
+            window.confirmAdd = function() {
+                const note = document.getElementById('modalNote').value;
+                const k = note ? `${currentProduct.key}_${Date.now()}` : currentProduct.key;
+                
+                if(!cart[k]) cart[k] = { 
+                    name: currentProduct.name, 
+                    price: currentProduct.price, 
+                    qty: 0, 
+                    note: note,
+                    to_kitchen: currentProduct.to_kitchen !== undefined ? currentProduct.to_kitchen : true 
+                };
+                
+                cart[k].qty += currentQty; 
+                renderCart(); 
+                closeModal();
+            };
 
-        renderMenu(); loadStatus();
-        setInterval(loadStatus, 4000);
+            window.renderCart = function() {
+                let html = ''; let totalBasket = 0; 
+                for(const [k, v] of Object.entries(cart)) {
+                    const lineTotal = parseFloat(v.price) * parseInt(v.qty);
+                    totalBasket += lineTotal;
+                    html += `<div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85em;">
+                        <span>${v.qty}x ${v.name} ${v.note ? `<br><small style="color:#ff9800;">(${v.note})</small>` : ''}</span>
+                        <span>${lineTotal.toFixed(2)} zł <button style="color:red; background:none; border:none;" onclick="delete cart['${k}']; renderCart()">✕</button></span>
+                    </div>`;
+                }
+                document.getElementById('cart').innerHTML = html || "<p style='color:#444;'>Pusto</p>";
+                const btn = document.querySelector('.btn-order');
+                btn.innerText = totalBasket > 0 ? `ZAMAWIAM (${totalBasket.toFixed(2)} zł) 🚀` : "ZAMAWIAM 🚀";
+            };
+
+            window.sendOrder = async function() {
+                const items = Object.entries(cart);
+                if (items.length === 0) { showToast("Koszyk jest pusty!"); return; }
+
+                const orderBtn = document.querySelector('.btn-order');
+                orderBtn.disabled = true; orderBtn.innerText = "WYSYŁANIE...";
+
+                try {
+                    for (const [key, item] of items) {
+                        for (let i = 0; i < item.qty; i++) {
+                            await fetch('/api/orders', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    table_number: tableId, burger_name: item.name, price: item.price,
+                                    note: item.note, to_kitchen: item.to_kitchen, session_id: mySession
+                                })
+                            });
+                        }
+                        delete cart[key]; 
+                    }
+                    showToast("👻 POSZŁO DO KUCHNI! SMAŻYMY!");
+                    renderCart(); loadStatus(); 
+                } catch (e) {
+                    showToast("Wystąpił błąd przy wysyłaniu zamówienia.");
+                } finally {
+                    orderBtn.disabled = false; orderBtn.innerText = "ZAMAWIAM 🚀";
+                }
+            };
+
+            window.loadStatus = async function() {
+                try {
+                    const tRes = await fetch(`/api/active_tables?_=${Date.now()}`, {cache: 'no-store'});
+                    const tData = await tRes.json();
+                    const tInfo = tData.tables.find(t => String(t.table_number) === String(tableId));
+                    
+                    if (!tInfo || tInfo.session_id !== mySession) {
+                        missingCount++;
+                        if (hasSeenTableActive || missingCount > 2) {
+                            clearSessionCookie();
+                            document.getElementById('thank-you-screen').style.display = 'flex';
+                            document.getElementById('app-content').style.display = 'none';
+                        }
+                        return; 
+                    }
+
+                    hasSeenTableActive = true;
+                    missingCount = 0;
+
+                    const res = await fetch(`/api/all_orders?_=${Date.now()}`, {cache: 'no-store'});
+                    const data = await res.json();
+                    const myActiveOrders = data.orders.filter(o => String(o.table_number) === String(tableId) && o.session_id === mySession);
+                    
+                    let html = ''; let total = 0;
+                    myActiveOrders.forEach(o => {
+                        if(!o.paid) total += parseFloat(o.price);
+                        html += `<div class="status-item">
+                            <span>• ${o.burger_name}</span>
+                            <b class="st-${o.status}">${o.paid ? '✅ Opłacone' : (o.status === 'nowe' ? 'W kolejce' : (o.status === 'preparing' ? 'Smaży się' : 'Gotowe'))}</b>
+                        </div>`;
+                    });
+
+                    document.getElementById('order-status').innerHTML = html + `<h3 style="text-align:right; color:var(--gold); margin-top:10px;">SUMA: ${total.toFixed(2)} zł</h3>`;
+                } catch (e) { console.error("Status check failed", e); }
+            };
+
+            renderMenu();
+            loadStatus();
+            setInterval(loadStatus, 4000);
+        }
     </script>
 </body>
 </html>
