@@ -386,8 +386,19 @@
         document.getElementById('stats-from').value = wczoraj.toISOString().split('T')[0];
         document.getElementById('stats-to').value = dzisiaj.toISOString().split('T')[0];
 
-        setInterval(fetchData, 4000);
         fetchData();
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'update') fetchData();
+                } catch (e) {}
+            };
+            ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
+        }
+        connectWebSocket();
     </script>
 </body>
 </html>

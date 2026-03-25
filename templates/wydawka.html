@@ -136,6 +136,14 @@
         </div>
     </div>
 
+    <div id="password-overlay" class="fixed inset-0 bg-black z-50 flex items-center justify-center p-4" style="display:none;">
+        <div class="bg-gray-800 border border-gray-600 rounded-xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <h2 class="text-xl font-bold mb-4 text-white">Wydawka - Dostęp Chroniony</h2>
+            <input type="password" id="access-pwd" class="w-full bg-gray-900 border border-gray-600 text-white p-3 rounded mb-4 text-center text-lg" placeholder="Hasło Master/Admin">
+            <button onclick="submitPwd()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold">ODBLOKUJ</button>
+        </div>
+    </div>
+
     <script>
         let layoutData = { width: 10, height: 10, tables: [] };
         let menuItems = {};
@@ -417,11 +425,43 @@
             currentCart = []; renderCart(); loadData(); 
         }
 
+        // --- BEZPIECZEŃSTWO ---
+        async function checkAccess() {
+            const pwd = localStorage.getItem('access_pwd_wydawka') || '';
+            const res = await fetch('/api/auth/verify_password', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({view: 'wydawka', password: pwd})
+            });
+            const data = await res.json();
+            if(!data.ok) { document.getElementById('password-overlay').style.display = 'flex'; return false; }
+            return true;
+        }
+
+        async function submitPwd() {
+            localStorage.setItem('access_pwd_wydawka', document.getElementById('access-pwd').value);
+            document.getElementById('password-overlay').style.display = 'none';
+            if(await checkAccess()) startApp();
+            else { alert("Błędne hasło!"); document.getElementById('password-overlay').style.display = 'flex'; }
+        }
+
         // --- START APLIKACJI ---
-        loadMenu();
-        loadData();
-        checkPosStatus();
-        setInterval(loadData, 4000); // Odświeżaj wszystko co 4 sekundy
+        async function startApp() {
+            if(!(await checkAccess())) return;
+            loadMenu();
+            loadData();
+            checkPosStatus();
+            function connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                ws.onmessage = function(event) {
+                    try { const data = JSON.parse(event.data); if (data.type === 'update') loadData(); } catch(e){}
+                };
+                ws.onclose = () => setTimeout(connectWebSocket, 2000);
+            }
+            connectWebSocket();
+        }
+        
+        startApp();
     </script>
 </body>
 </html>

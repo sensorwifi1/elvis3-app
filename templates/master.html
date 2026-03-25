@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>MASTER PANEL</title>
+    <style>
+        body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+        .hidden { display: none; }
+        input, select, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #333; background: #222; color: #fff; }
+        button { background: #d4af37; color: #000; font-weight: bold; cursor: pointer; }
+    </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <h1 style="color:#d4af37">PANEL DOSTĘPÓW (MASTER/ADMIN)</h1>
+    
+    <div id="login-section">
+        <p>Zaloguj się kontem Google:</p>
+        <div id="g_id_onload"
+             data-client_id="YOUR_GOOGLE_CLIENT_ID_HERE"
+             data-callback="handleCredentialResponse">
+        </div>
+        <div class="g_id_signin" data-type="standard"></div>
+    </div>
+
+    <div id="dashboard-section" class="hidden">
+        <h2 id="welcome-text"></h2>
+        
+        <div style="border:1px solid #333; padding:15px; margin-bottom:15px;" id="role-manager">
+            <h3>Nadaj Uprawnienia</h3>
+            <input type="email" id="target-email" placeholder="Adres email Google">
+            <select id="target-role">
+                <option value="kuchnia">Kuchnia (KDS)</option>
+                <option value="admin">Admin (Zarządzanie POS)</option>
+            </select>
+            <button onclick="grantRole()">NADAJ ROLĘ</button>
+        </div>
+
+        <div style="border:1px solid #333; padding:15px;">
+            <h3>Ustaw Hasła Panelów</h3>
+            <div>
+                <label>Wydawka:</label>
+                <input type="text" id="wydawka-pwd" placeholder="Hasło dla wydawki">
+                <button onclick="setPwd('wydawka')">ZAPISZ</button>
+            </div>
+            <div>
+                <label>KDS (Kuchnia):</label>
+                <input type="text" id="kds-pwd" placeholder="Hasło dla KDS">
+                <button onclick="setPwd('kds')">ZAPISZ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myRole = "user";
+        
+        async function handleCredentialResponse(response) {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({credential: response.credential})
+            });
+            const data = await res.json();
+            
+            if (data.ok) {
+                myRole = data.role;
+                document.getElementById('login-section').classList.add('hidden');
+                
+                if (myRole === "master" || myRole === "admin") {
+                    document.getElementById('dashboard-section').classList.remove('hidden');
+                    document.getElementById('welcome-text').innerText = `Witaj ${data.email} (${myRole.toUpperCase()})`;
+                    
+                    if (myRole === "admin") {
+                        document.getElementById('target-role').querySelector('option[value="admin"]').disabled = true;
+                    }
+                } else {
+                    document.getElementById('dashboard-section').classList.remove('hidden');
+                    document.getElementById('dashboard-section').innerHTML = `<h2 style="color:red">Brak uprawnień Master/Admin! Twoja rola: ${myRole}</h2>`;
+                }
+            } else {
+                alert("Błąd logowania: " + data.error);
+            }
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        async function grantRole() {
+            const role = getCookie("auth_role") || myRole;
+            const res = await fetch('/api/admin/set_role', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    auth_role: role,
+                    email: document.getElementById('target-email').value,
+                    role: document.getElementById('target-role').value
+                })
+            });
+            const data = await res.json();
+            if (data.ok) alert("Rola nadana pomyślnie");
+            else alert("Błąd: " + data.error);
+        }
+
+        async function setPwd(view) {
+            const role = getCookie("auth_role") || myRole;
+            const pwd = document.getElementById(`${view}-pwd`).value;
+            const res = await fetch('/api/admin/set_password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    auth_role: role,
+                    view: view,
+                    password: pwd
+                })
+            });
+            const data = await res.json();
+            if (data.ok) alert("Hasło ustawione");
+            else alert("Błąd: " + data.error);
+        }
+    </script>
+</body>
+</html>

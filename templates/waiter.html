@@ -281,7 +281,18 @@
         }
 
         refresh(); 
-        setInterval(refresh, 3000);
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'update') refresh();
+                } catch (e) {}
+            };
+            ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
+        }
+        connectWebSocket();
     </script>
 </body>
 </html>

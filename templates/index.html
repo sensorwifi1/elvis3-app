@@ -66,6 +66,12 @@
         <button onclick="startNewOrder()" style="background:var(--gold); border:none; padding:15px 30px; border-radius:10px; font-weight:bold; margin-top:20px; cursor:pointer;">NOWE ZAMÓWIENIE</button>
     </div>
 
+    <div id="storyModal" class="fullscreen-msg" style="z-index: 99999; background: rgba(0,0,0,0.95);">
+        <h1 style="color:var(--gold); font-size:2em; font-style:italic; margin-bottom: 20px;">Duch Burgera Mówi... 🍔</h1>
+        <p id="storyContent" style="color:#ddd; font-size:1.3em; max-width:80%; line-height:1.6;">...</p>
+        <button onclick="document.getElementById('storyModal').style.display='none';" style="background:var(--gold); color:black; border:none; padding:15px 40px; border-radius:10px; font-weight:bold; margin-top:30px; cursor:pointer;">ZAMKNIJ I OPŁAĆ</button>
+    </div>
+
     <div id="locked-screen" class="fullscreen-msg">
         <h1 style="color:#ff5252; font-size:3em;">STOLIK ZAJĘTY 🛑</h1>
         <p style="color:#aaa;">Ten stolik obsługuje już inne urządzenie.<br>Jeśli to pomyłka, poproś obsługę o zresetowanie stolika.</p>
@@ -87,7 +93,7 @@
         <div class="sidebar">
             <div class="action-btns">
                 <button class="btn-call" onclick="fetch('/api/call_waiter/{{locked_num if table_locked else session_table}}', {method:'POST', cache:'no-store'})">🛎️ KELNER</button>
-                <button class="btn-pay" onclick="fetch('/api/pay_request/{{locked_num if table_locked else session_table}}', {method:'POST', cache:'no-store'})">💳 RACHUNEK</button>
+                <button class="btn-pay" onclick="requestBill()">💳 RACHUNEK</button>
             </div>
             <h4 style="margin:0 0 10px; font-size:0.8em; color:#555;">KOSZYK</h4>
             <div id="cart" class="cart-box"></div>
@@ -175,6 +181,23 @@
             } catch(e) {
                 console.error("Błąd sieci podczas resetu:", e);
                 alert("❌ Brak połączenia z serwerem! Upewnij się, że masz internet.");
+            }
+        }
+
+        async function requestBill() {
+            fetch(`/api/pay_request/${tableId}`, {method:'POST', cache:'no-store'});
+            
+            const modal = document.getElementById('storyModal');
+            const content = document.getElementById('storyContent');
+            content.innerText = 'Duch burgera pisze historię...';
+            modal.style.display = 'flex';
+            
+            try {
+                const res = await fetch(`/api/get_burger_story?_=${Date.now()}`);
+                const data = await res.json();
+                content.innerText = data.story;
+            } catch (e) {
+                content.innerText = "Jeden kęs dobrego burgera potrafi przenieść w wymiar prawdziwej rozkoszy gastronomicznej!";
             }
         }
 
@@ -326,7 +349,18 @@
 
             renderMenu();
             loadStatus();
-            setInterval(loadStatus, 4000);
+            function connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'update') loadStatus();
+                    } catch (e) {}
+                };
+                ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
+            }
+            connectWebSocket();
         }
     </script>
 </body>

@@ -1,5 +1,5 @@
 import os, requests, json, uuid
-from fastapi import FastAPI, Request, File, UploadFile, Form, Cookie, Response
+from fastapi import FastAPI, Request, File, UploadFile, Form, Cookie, Response, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -8,9 +8,45 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 from collections import defaultdict
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+import jwt
 
 app = FastAPI()
 APP_DIR = Path(__file__).resolve().parent
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                disconnected.append(connection)
+        for d in disconnected:
+            self.disconnect(d)
+
+manager = ConnectionManager()
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
@@ -48,6 +84,17 @@ async def get_story(item: str = "burger"):
     except:
         return {"story": "Czy wiesz, że pierwszy burger powstał z potrzeby zjedzenia posiłku w biegu?"}
 
+@app.get("/api/get_burger_story")
+async def get_burger_story():
+    prompt = "Napisz krótką, pozytywną i ciekawą historię o jedzeniu burgerów. Maksymalnie 3 zdania, które wywołają uśmiech."
+    try:
+        payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": 150, "temperature": 0.8}}
+        res = requests.post(GEMINI_URL, json=payload, timeout=5).json()
+        story = res['candidates'][0]['content']['parts'][0]['text'].strip()
+        return {"story": story}
+    except:
+        return {"story": "Jeden kęs dobrego burgera potrafi przenieść w wymiar prawdziwej rozkoszy gastronomicznej. Chrupiąca bułka i soczyste mięso tworzą kompozycję idealną. Pamiętaj, że zawsze warto znaleźć chwilę na taką drobną przyjemność!"}
+
 # --- MENU & LAYOUT ---
 
 @app.get("/api/get_menu")
@@ -70,9 +117,78 @@ async def save_layout(request: Request):
         # Zmuszamy serwer do odebrania JSONa z frontendu
         payload = await request.json()
         db.collection("config").document("floor_plan").set(payload)
+        await manager.broadcast(json.dumps({"type": "update"}))
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
+
+# --- AUTHENTICATION & ROLES ---
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID_HERE")
+MASTER_EMAIL = "hajdukiewicz@gmail.com"
+
+@app.post("/api/auth/login")
+async def auth_login(request: Request, response: Response):
+    data = await request.json()
+    token = data.get("credential")
+    email = None
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        email = idinfo['email']
+    except Exception as e:
+        try:
+            decoded = jwt.decode(token, options={"verify_signature": False})
+            email = decoded.get('email')
+        except:
+            return {"error": str(e)}
+
+    if not email:
+        return {"error": "Brak email w tokenie"}
+
+    role = "user"
+    if email == MASTER_EMAIL:
+        role = "master"
+    else:
+        doc = db.collection("users").document(email).get()
+        if doc.exists:
+            role = doc.to_dict().get("role", "user")
+
+    return {"ok": True, "email": email, "role": role}
+
+@app.post("/api/admin/set_role")
+async def set_role(request: Request):
+    data = await request.json()
+    auth_role = data.get("auth_role")
+    if auth_role not in ["master", "admin"]: return {"error": "Brak uprawnień"}
+    
+    target_email = data.get("email")
+    new_role = data.get("role")
+    if target_email == MASTER_EMAIL: return {"error": "Nie można zmienić Mastera"}
+    if auth_role == "admin" and new_role == "admin": return {"error": "Admin nie może nadać roli Admina"}
+    
+    db.collection("users").document(target_email).set({"role": new_role})
+    return {"ok": True}
+
+@app.post("/api/admin/set_password")
+async def set_password(request: Request):
+    data = await request.json()
+    auth_role = data.get("auth_role")
+    if auth_role not in ["master", "admin"]: return {"error": "Brak uprawnień"}
+    
+    view = data.get("view")
+    pwd = data.get("password")
+    db.collection("config").document("passwords").set({f"{view}_pwd": pwd}, merge=True)
+    return {"ok": True}
+
+@app.post("/api/auth/verify_password")
+async def verify_pwd(request: Request):
+    data = await request.json()
+    view = data.get("view")
+    pwd = data.get("password")
+    doc = db.collection("config").document("passwords").get()
+    correct = doc.to_dict().get(f"{view}_pwd") if doc.exists else None
+    if not correct: return {"ok": True}
+    return {"ok": pwd == correct}
+
 @app.post("/api/admin/save_product")
 async def save_product(
     key: str=Form(...), name: str=Form(...), price: float=Form(...), description: str=Form(""),
@@ -90,6 +206,7 @@ async def save_product(
         "name": name, "price": price, "description": description, "allergens": allergens,
         "kcal": kcal, "weight": weight, "image": final_image, "sort_order": sort_order, "to_kitchen": to_kitchen
     }, merge=True)
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
 # --- TABLES & CALLS ---
@@ -101,16 +218,19 @@ async def active_tables():
 @app.post("/api/call_waiter/{table_num}")
 async def call_waiter(table_num: int):
     db.collection("active_tables").document(str(table_num)).set({"call_waiter": True}, merge=True)
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
 @app.post("/api/pay_request/{table_num}")
 async def pay_request(table_num: int):
     db.collection("active_tables").document(str(table_num)).set({"pay_request": True}, merge=True)
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
 @app.post("/api/reset_call/{table_num}")
 async def reset_call(table_num: int):
     db.collection("active_tables").document(str(table_num)).set({"call_waiter": False, "pay_request": False}, merge=True)
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
 # --- ORDERS ---
@@ -120,6 +240,7 @@ async def update_status(id: str, request: Request):
     try:
         payload = await request.json()
         db.collection("orders").document(id).update({"status": payload.get("status")})
+        await manager.broadcast(json.dumps({"type": "update"}))
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
@@ -153,6 +274,7 @@ async def add_order(order: dict):
             "to_kitchen": order.get("to_kitchen", True)
         }
         db.collection("orders").add(order_data)
+        await manager.broadcast(json.dumps({"type": "update"}))
         return {"ok": True}
     except Exception as e:
         print("Błąd dodawania zamówienia:", e)
@@ -190,11 +312,20 @@ async def mark_paid(table_num: int):
     
     batch = db.batch()
     found = False
+    orders_to_print = []
     for d in docs:
         batch.update(db.collection("orders").document(d.id), {"paid": True})
+        orders_to_print.append(d.to_dict())
         found = True
     if found: batch.commit()
     db.collection("active_tables").document(table_str).update({"pay_request": False})
+    await manager.broadcast(json.dumps({"type": "update"}))
+    if orders_to_print:
+        await manager.broadcast(json.dumps({
+            "type": "receipt",
+            "table_number": table_str,
+            "items": orders_to_print
+        }))
     return {"ok": True}
 
 # --- WYDAWKA API ---
@@ -239,6 +370,7 @@ async def wydaj_bon(payload: dict):
     for d in docs:
         batch.update(db.collection("orders").document(d.id), {"status": "closed"})
     batch.commit()
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
 # --- HTML PAGES ---
@@ -247,6 +379,7 @@ async def wydaj_bon(payload: dict):
 async def clear_table(table_id: str):
     # Całkowite usunięcie dokumentu = stolik w 100% ZIELONY/WOLNY
     db.collection("active_tables").document(table_id).delete()
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 # --- HTML PAGES ---
 
@@ -301,3 +434,7 @@ async def waiter(request: Request):
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
     return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
+
+@app.get("/master", response_class=HTMLResponse)
+async def master_page(request: Request):
+    return templates.TemplateResponse(request=request, name="master.html", context={"request": request})

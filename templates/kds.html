@@ -23,6 +23,14 @@
     <h1>🔥 KDS - KUCHNIA 🔥</h1>
     <div id="grid"></div>
 
+    <div id="password-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); justify-content:center; align-items:center; z-index:9999;">
+        <div style="background:#111; padding:30px; border-radius:10px; border:2px solid #555; text-align:center; box-shadow:0 0 20px #000; min-width:300px;">
+            <h2 style="color:#d4af37; margin-bottom:20px;">Dostęp Chroniony</h2>
+            <input type="password" id="access-pwd" style="padding:10px; width:90%; margin-bottom:20px; text-align:center; font-size:1.2em;" placeholder="Podaj Hasło">
+            <button onclick="submitPwd()" style="background:#2e7d32; color:white; border:none; padding:12px 20px; font-weight:bold; cursor:pointer; width:100%; border-radius:6px; font-size:1.1em;">ODBLOKUJ KDS</button>
+        </div>
+    </div>
+
     <script>
         async function loadData() {
             try {
@@ -92,8 +100,40 @@
             ));
             loadData();
         }
-        setInterval(loadData, 3000);
-        loadData();
+
+        async function checkAccess() {
+            const pwd = localStorage.getItem('access_pwd_kds') || '';
+            const res = await fetch('/api/auth/verify_password', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({view: 'kds', password: pwd})
+            });
+            const data = await res.json();
+            if(!data.ok) { document.getElementById('password-overlay').style.display = 'flex'; return false; }
+            return true;
+        }
+
+        async function submitPwd() {
+            localStorage.setItem('access_pwd_kds', document.getElementById('access-pwd').value);
+            document.getElementById('password-overlay').style.display = 'none';
+            if(await checkAccess()) startApp();
+            else { alert("Błędne hasło!"); document.getElementById('password-overlay').style.display = 'flex'; }
+        }
+
+        async function startApp() {
+            if(!(await checkAccess())) return;
+            loadData();
+            function connectWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+                ws.onmessage = function(event) {
+                    try { const data = JSON.parse(event.data); if (data.type === 'update') loadData(); } catch (e) {}
+                };
+                ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
+            }
+            connectWebSocket();
+        }
+        
+        startApp();
     </script>
 </body>
 </html>
