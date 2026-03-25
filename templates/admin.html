@@ -46,6 +46,16 @@
 </head>
 <body>
 
+    <div id="password-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:10000; display:flex; align-items:center; justify-content:center;">
+        <div style="background:#111; border:1px solid var(--gold); padding:40px; border-radius:20px; text-align:center; max-width:400px; width:90%; box-shadow:0 0 50px rgba(212,175,55,0.4);">
+            <h1 style="color:var(--gold); margin-bottom:10px; font-weight:800;">ELVIS ADMIN</h1>
+            <p style="color:#888; margin-bottom:30px;">Wprowadź PIN Admina / Szefa</p>
+            <input type="password" id="staff-pin" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:var(--gold); border-radius:10px; font-size:1.8em; text-align:center; letter-spacing:10px; margin-bottom:20px;" maxlength="8">
+            <button onclick="submitStaffPin()" style="width:100%; padding:18px; background:var(--gold); color:#000; font-weight:bold; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; transition:0.2s;">AUTORYZUJ</button>
+            <div id="login-error" style="color:var(--orange); margin-top:15px; font-weight:bold; display:none;">BŁĘDNY PIN!</div>
+        </div>
+    </div>
+
     <div id="toast">Komunikat...</div>
 
     <nav>
@@ -55,6 +65,7 @@
         <button class="nav-btn" onclick="showTab('tab-stats')">📈 STATYSTYKI</button>
         <button class="nav-btn" onclick="showTab('tab-floor')">🗺️ MAPA SALI</button>
         <button class="nav-btn" onclick="showTab('tab-menu')">🍔 PRODUKTY</button>
+        <button class="nav-btn" onclick="showTab('tab-staff')">👥 PRACOWNICY</button>
     </nav>
 
     <main>
@@ -117,30 +128,31 @@
         </div>
 
         <div id="tab-menu" class="tab">
+            ... (existing menu code) ...
+        </div>
+
+        <div id="tab-staff" class="tab">
+            <h2 style="color:var(--gold);">Zarządzanie Pracownikami</h2>
+            <p style="color:#888; margin-bottom:20px;">Nadaj PIN (min. 6 znaków) dla każdego pracownika i przypisz mu rolę.</p>
             <div class="form-container">
-                <h3>Edytor Produktu</h3>
-                <div class="input-row">
-                    <input type="text" id="m-key" placeholder="Klucz (np. burger_elvis)">
-                    <input type="text" id="m-name" placeholder="Nazwa">
-                    <input type="number" id="m-price" placeholder="Cena">
-                    <input type="number" id="m-sort" value="10">
-                </div>
-                <div class="input-row" style="grid-template-columns: 2fr 1fr;">
-                    <textarea id="m-desc" placeholder="Opis produktu (wyświetlany w menu klienta)"></textarea>
-                    <input type="text" id="m-allergens" placeholder="Alergeny (np. gluten, laktoza)">
-                </div>
-                <div class="input-row">
-                    <input type="number" id="m-kcal" placeholder="Kalorie (kcal)">
-                    <input type="number" id="m-weight" placeholder="Waga (g)">
-                    <select id="m-kitchen">
-                        <option value="true">Kuchnia (KDS)</option>
-                        <option value="false">Bar (Napoje)</option>
+                <div class="input-row" style="grid-template-columns: 2fr 1fr 1fr;">
+                    <input type="text" id="s-name" placeholder="Imię Pracownika">
+                    <input type="password" id="s-pin" placeholder="PIN (6 znaków)">
+                    <select id="s-role">
+                        <option value="waiter">Kelner (Stacja POS)</option>
+                        <option value="wydawka">Wydawka (Expo)</option>
+                        <option value="kds">KDS (Kuchnia)</option>
+                        <option value="admin">Admin (Szef)</option>
                     </select>
-                    <input type="file" id="m-file">
                 </div>
-                <button class="btn-save" onclick="saveProd()">💾 ZAPISZ I WGRAJ PRODUKT</button>
+                <button class="btn-save" onclick="saveStaff()">DODAJ / AKTUALIZUJ PRACOWNIKA</button>
             </div>
-            <div id="prod-grid" class="prod-grid"></div>
+            <div class="form-container">
+                <table class="pos-table">
+                    <thead><tr><th>IMIĘ</th><th>PIN (UKRYTY)</th><th>ROLA</th><th>OPCJE</th></tr></thead>
+                    <tbody id="staff-list"></tbody>
+                </table>
+            </div>
         </div>
     </main>
 
@@ -165,6 +177,7 @@
             if(id === 'tab-floor') drawFloorEdit();
             if(id === 'tab-stats') loadDetailedStats();
             if(id === 'tab-pos') renderPOSList();
+            if(id === 'tab-staff') loadStaff();
         }
 
         // NAPRAWIONE: Funkcja pobierająca nie tyka mapy, jeśli jest w trakcie edycji!
@@ -369,8 +382,39 @@
             });
         }
 
+        async function saveStaff() {
+            const name = document.getElementById('s-name').value;
+            const pin = document.getElementById('s-pin').value;
+            const role = document.getElementById('s-role').value;
+            if(!name || !pin) return alert("Wypełnij imię i PIN!");
+            const res = await fetch('/api/admin/save_staff', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name, pin, role })
+            });
+            const data = await res.json();
+            if(data.ok) { showToast("Użytkownik dodany!"); loadStaff(); } else alert(data.error);
+        }
+
+        async function loadStaff() {
+            const res = await fetch('/api/admin/get_staff');
+            const data = await res.json();
+            document.getElementById('staff-list').innerHTML = data.map(s => `
+                <tr>
+                    <td>${s.name}</td>
+                    <td>●●●●●●</td>
+                    <td style="text-transform:uppercase; font-size:0.8em; font-weight:bold; color:var(--gold)">${s.role}</td>
+                    <td><button onclick="deleteStaff('${s.pin}')" style="background:#444; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">USUŃ</button></td>
+                </tr>
+            `).join('');
+        }
+
+        async function deleteStaff(pin) {
+            if(confirm("Czy na pewno usunąć tego pracownika?")) {
+                showToast("Funkcja usuwania w trakcie wdrożenia...");
+            }
+        }
+
         async function renderPOSList() {
-            // Pobieramy status RPi z serwera (używamy domyślnego klucza z elvis.md dla uproszczenia lub dynamicznie jeśli masz ich więcej)
             try {
                 const res = await fetch('/api/device_status/Elvis_KWI_0326');
                 const data = await res.json();
@@ -380,16 +424,13 @@
                 
                 if (data.status === 'online') {
                     dot.style.background = '#4caf50';
-                    dot.style.boxShadow = '0 0 10px #4caf50';
                     text.innerText = 'ONLINE';
                     text.style.color = '#4caf50';
                     ip.innerText = `Lokalne IP: ${data.ip || '?'}`;
                 } else {
                     dot.style.background = '#d32f2f';
-                    dot.style.boxShadow = 'none';
                     text.innerText = 'OFFLINE';
                     text.style.color = '#d32f2f';
-                    ip.innerText = '(Brak danych o IP)';
                 }
             } catch(e) {}
 
@@ -411,7 +452,37 @@
         document.getElementById('stats-from').value = wczoraj.toISOString().split('T')[0];
         document.getElementById('stats-to').value = dzisiaj.toISOString().split('T')[0];
 
-        fetchData();
+        async function checkAccess() {
+            const pin = localStorage.getItem('staff_pin') || '';
+            const res = await fetch('/api/auth/staff_login', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({pin: pin})
+            });
+            const data = await res.json();
+            if(data.ok && data.role === 'admin') {
+                document.getElementById('password-overlay').style.display = 'none';
+                return true;
+            }
+            return false;
+        }
+
+        async function submitStaffPin() {
+            const pin = document.getElementById('staff-pin').value;
+            localStorage.setItem('staff_pin', pin);
+            if(await checkAccess()) startApp();
+            else { 
+                document.getElementById('login-error').style.display = 'block';
+                document.getElementById('staff-pin').value = '';
+            }
+        }
+
+        async function startApp() {
+            if(!(await checkAccess())) return;
+            fetchData();
+            loadStaff(); 
+            connectWebSocket();
+        }
+
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -423,7 +494,8 @@
             };
             ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
         }
-        connectWebSocket();
+
+        startApp();
     </script>
 </body>
 </html>

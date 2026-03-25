@@ -117,6 +117,37 @@ async def get_burger_story():
     except:
         return {"story": "Jeden kęs dobrego burgera potrafi przenieść w wymiar prawdziwej rozkoszy gastronomicznej. Chrupiąca bułka i soczyste mięso tworzą kompozycję idealną. Pamiętaj, że zawsze warto znaleźć chwilę na taką drobną przyjemność!"}
 
+# --- STAFF MANAGEMENT & PIN AUTH ---
+
+@app.post("/api/admin/save_staff")
+async def save_staff(request: Request):
+    data = await request.json()
+    name = data.get("name")
+    pin = data.get("pin")
+    role = data.get("role")
+    if not pin or len(pin) < 6: return {"ok": False, "error": "Hasło musi mieć min 6 znaków."}
+    # Zapisujemy pod kluczem PIN, aby łatwo było go wyszukać podczas logowania
+    db.collection("staff").document(pin).set({"name": name, "role": role})
+    return {"ok": True}
+
+@app.get("/api/admin/get_staff")
+async def get_staff():
+    return [{"pin": d.id, **d.to_dict()} for d in db.collection("staff").stream()]
+
+@app.post("/api/auth/staff_login")
+async def staff_login(request: Request):
+    data = await request.json()
+    pin = str(data.get("pin"))
+    # MASTER PIN (Dla szefa - Hajdukiewicz)
+    if pin == "789643": # Przykładowy pin dla Mastera (poprawiony na bezpieczniejszy)
+        return {"ok": True, "name": "MASTER", "role": "admin"}
+        
+    doc = db.collection("staff").document(pin).get()
+    if doc.exists:
+        u = doc.to_dict()
+        return {"ok": True, "name": u.get("name"), "role": u.get("role")}
+    return {"ok": False}
+
 # --- MENU & LAYOUT ---
 
 @app.get("/api/get_menu")

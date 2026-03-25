@@ -5,15 +5,6 @@ import asyncio
 import logging
 import socket
 from pathlib import Path
-
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except: return "127.0.0.1"
 from datetime import datetime
 
 import requests
@@ -31,15 +22,34 @@ app.secret_key = os.environ.get("SESSION_SECRET", "elvis-rpi-secret-key-2026")
 DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
 DATA_DIR.mkdir(exist_ok=True)
 KEY_FILE = DATA_DIR / "device_key.txt"
+CONFIG_PATH = DATA_DIR / "device_config.json"
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except: return "127.0.0.1"
+
+def get_config():
+    if CONFIG_PATH.exists():
+        try: return json.loads(CONFIG_PATH.read_text())
+        except: pass
+    return {"cloud_url": os.environ.get("CLOUD_BASE_URL", "http://127.0.0.1:8000")}
+
+def save_config(conf):
+    CONFIG_PATH.write_text(json.dumps(conf))
 
 # Konfiguracja Cloud
-CLOUD_BASE_URL = os.environ.get("CLOUD_BASE_URL", "http://127.0.0.1:8000")
+CONFIG = get_config()
+CLOUD_BASE_URL = CONFIG.get("cloud_url", "http://127.0.0.1:8000")
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "292715946390-kb36g21aoeithmpanfd82jcmjfs7b5v9.apps.googleusercontent.com")
 MASTER_EMAIL = "hajdukiewicz@gmail.com"
 
 # Globalny bufor zdarzeń i paragonów
 event_log = []
-receipts_log = []
 
 def add_log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
@@ -77,7 +87,7 @@ INDEX_HTML = """
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
         .card:hover { border-color: var(--gold); transform: translateY(-5px); }
-        .card h3 { margin-top: 0; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 10px; }
+        .card h3 { margin-top: 0; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 10px; font-size: 1.1em; }
         
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75em; font-weight: 800; text-transform: uppercase; }
         .online { background: rgba(56, 142, 60, 0.2); color: #81c784; border: 1px solid #388e3c; }
@@ -100,8 +110,8 @@ INDEX_HTML = """
         .log-box { background: #000; font-family: monospace; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; font-size: 0.85em; color: #777; border: 1px solid #111; }
         .log-box div { border-bottom: 1px solid #0a0a0a; padding: 4px 0; }
         
-        iframe-link { color: var(--gold); font-weight: 600; text-decoration: none; border: 1px solid var(--gold); padding: 5px 15px; border-radius: 8px; transition: 0.2s; }
-        iframe-link:hover { background: var(--gold); color: #000; }
+        .iframe-link { color: var(--gold); font-weight: 600; text-decoration: none; border: 1px solid var(--gold); padding: 5px 15px; border-radius: 8px; transition: 0.2s; font-size: 0.9em; }
+        .iframe-link:hover { background: var(--gold); color: #000; }
     </style>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -110,6 +120,7 @@ INDEX_HTML = """
         <header>
             <h1>ELVIS RPI <span>GATEWAY</span></h1>
             <div style="display:flex; gap:10px;">
+                <a href="/pos" class="iframe-link" style="background:var(--gold); color:#000;">STACJA POS</a>
                 <a href="/kds" class="iframe-link" target="_blank">KDS</a>
                 <a href="/wydawka" class="iframe-link" target="_blank">Wydawka</a>
             </div>
@@ -118,7 +129,7 @@ INDEX_HTML = """
         {% if not session.get('email') %}
         <div class="card" style="text-align: center; max-width: 500px; margin: 0 auto;">
             <h3>🔐 Autoryzacja Administratora</h3>
-            <p style="color:#888; margin-bottom:30px;">Zaloguj się kontem Master, aby zarządzać ustawieniami tej bramki.</p>
+            <p style="color:#888; margin-bottom:30px;">Zaloguj się kontem Master, aby zarządzać ustawieniami.</p>
             <div id="g_id_onload" data-client_id="{{ client_id }}" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
             <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_black" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
             <script>
@@ -137,25 +148,33 @@ INDEX_HTML = """
         </div>
         {% else %}
         <div class="grid">
+            <!-- KONFIGURACJA CHMURY -->
+            <div class="card" style="grid-column: 1 / -1;">
+                <h3>☁️ Konfiguracja Chmury</h3>
+                <form method="POST" action="/set_config" style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" name="cloud_url" value="{{ cloud_url }}" placeholder="https://elvis3-app.a.run.app" style="margin-bottom:0;">
+                    <button class="btn" style="white-space:nowrap;">ZAPISZ URL</button>
+                </form>
+                <p style="color:#555; font-size:0.75em; margin-top:8px;">Malinka szuka teraz chmury pod: <b style="color:var(--gold)">{{ cloud_url }}</b></p>
+            </div>
+
             <!-- KONFIGURACJA URZĄDZENIA -->
             <div class="card">
-                <h3>🆔 Tożsamość Urządzenia</h3>
+                <h3>🆔 Tożsamość (Device Key)</h3>
                 <form method="POST" action="/set_device_key">
-                    <label style="font-size:0.7em; color:#555; text-transform:uppercase;">Unikalny Device Key (np. z elvis.md)</label>
                     <input type="text" name="device_key" value="{{ device_key }}" placeholder="Elvis_KWI_0326">
-                    <button class="btn" style="width:100%">💾 AKTUALIZUJ I RESTARTUJ</button>
+                    <button class="btn" style="width:100%">💾 AKTUALIZUJ KLUCZ</button>
                 </form>
                 <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.9em;">Status Parowania:</span>
                     {% if device_key %}
                     <span class="status-pill online">SPAROWANO</span>
                     {% else %}
-                    <span class="status-pill offline">NIEAKTYWNY</span>
+                    <span class="status-pill offline">BRAK</span>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- STATUS SESJI -->
             <div class="card">
                 <h3>👤 Administrator</h3>
                 <p style="margin:5px 0 20px; color:#aaa;">Zalogowany jako:<br><b style="color:#fff;">{{ session['email'] }}</b></p>
@@ -173,7 +192,7 @@ INDEX_HTML = """
                     {% endfor %}
                 </div>
                 <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color:#555; font-size:0.8em;">Połączenie z cloud: <b>{{ cloud_url }}</b></span>
+                    <span style="color:#555; font-size:0.8em;">Lokalne IP: <b>{{ local_ip }}</b></span>
                     <button class="btn btn-outline" style="padding:5px 12px; font-size:0.8em;" onclick="location.reload()">ODŚWIEŻ</button>
                 </div>
             </div>
@@ -181,7 +200,7 @@ INDEX_HTML = """
         {% endif %}
 
         <footer style="margin-top:40px; text-align:center; color:#333; font-size:0.8em;">
-            Elvis POS RPi Gateway v2.1 | Built for High-Performance Gastronomy
+            Elvis POS RPi Gateway v2.5 | Powering NextGen Gastronomy
         </footer>
     </div>
 </body>
@@ -209,7 +228,8 @@ def index():
         client_id=GOOGLE_CLIENT_ID, 
         event_log=reversed(event_log), 
         device_key=get_device_key(),
-        cloud_url=CLOUD_BASE_URL
+        cloud_url=CLOUD_BASE_URL,
+        local_ip=get_local_ip()
     )
 
 @app.route("/login", methods=["POST"])
@@ -221,24 +241,28 @@ def login():
         from google.auth.transport import requests as google_requests
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
         email = idinfo['email']
-        
         if email == MASTER_EMAIL:
             session['email'] = email
-            add_log(f"Autoryzacja Mastera powiodła się: {email}")
+            add_log(f"Zalogowano Mastera: {email}")
             return jsonify({"ok": True})
-        else:
-            add_log(f"Odmowa dostępu dla: {email}")
-            return jsonify({"error": "Brak uprawnień Mastera"})
-            
+        return jsonify({"error": "Brak uprawnień Mastera"})
     except Exception as e:
-        logger.error(f"Login error: {e}")
-        return jsonify({"error": "Błąd weryfikacji tokena Google"})
+        return jsonify({"error": str(e)})
 
 @app.route("/logout", methods=["POST"])
 def logout():
-    email = session.get('email')
     session.clear()
-    add_log(f"Administrator {email} wylogował się.")
+    return redirect(url_for("index"))
+
+@app.route("/set_config", methods=["POST"])
+def set_config():
+    if session.get('email') != MASTER_EMAIL: return "Unauthorized", 401
+    url = request.form.get("cloud_url", "").strip()
+    conf = get_config()
+    conf["cloud_url"] = url
+    save_config(conf)
+    add_log(f"Zmieniono URL chmury na: {url}. Restart...")
+    threading.Timer(1, lambda: os._exit(1)).start()
     return redirect(url_for("index"))
 
 @app.route("/set_device_key", methods=["POST"])
@@ -246,10 +270,14 @@ def set_device_key():
     if session.get('email') != MASTER_EMAIL: return "Unauthorized", 401
     dk = request.form.get("device_key", "").strip()
     KEY_FILE.write_text(dk)
-    add_log(f"Zmieniono klucz urządzenia na: {dk}. Restartowanie serwera...")
-    # W środowisku Docker/systemd to spowoduje restart kontenera i odświeżenie połączeń WS
-    threading.Timer(1, lambda: os._exit(1)).start() 
+    add_log(f"Zmieniono klucz urządzenia. Restart...")
+    threading.Timer(1, lambda: os._exit(1)).start()
     return redirect(url_for("index"))
+
+@app.route("/pos")
+def pos():
+    # User-requested POS stacja on RPi
+    return render_template_string(IFRAME_HTML, name="POS", url=f"{CLOUD_BASE_URL}/waiter")
 
 @app.route("/kds")
 def kds():
@@ -260,50 +288,25 @@ def wydawka():
     return render_template_string(IFRAME_HTML, name="Wydawka", url=f"{CLOUD_BASE_URL}/wydawka")
 
 # --- BACKGROUND WEBSOCKET CLIENT ---
-
 async def ws_client_loop():
     while True:
         dk = get_device_key()
-        if not dk:
-            logger.info("Brak klucza urządzenia. Oczekiwanie na konfigurację...")
-            await asyncio.sleep(10)
+        if not dk or not CLOUD_BASE_URL:
+            await asyncio.sleep(5)
             continue
             
         ws_url = CLOUD_BASE_URL.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?device_key={dk}"
-        
         try:
-            add_log(f"Próba połączenia z Cloud ({dk})...")
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=10) as ws:
-                add_log("Połączono z Elvis Cloud. Bramka jest aktywna.")
-                logger.info(f"WS Connected to {ws_url}")
-                
-                # Wyślij status "online" przy starcie połączenia
-                await ws.send(json.dumps({
-                    "type": "device_status",
-                    "status": "online",
-                    "ip": get_local_ip()
-                }))
-                
+                add_log(f"Połączono z Chmurą ({dk})")
+                await ws.send(json.dumps({"type": "device_status", "status": "online", "ip": get_local_ip()}))
                 while True:
                     msg = await ws.recv()
                     data = json.loads(msg)
-                    
                     if data.get("type") == "receipt":
-                        table = data.get("table", "?")
-                        items = data.get("orders", [])
-                        msg_txt = f"Odebrano paragon: Stolik {table} ({len(items)} poz.)"
-                        add_log(msg_txt)
-                        logger.info(msg_txt)
-                        # Tu można dodać wywołanie fizycznej drukarki
-                        
-                    elif data.get("type") == "ping":
-                        # Opcjonalne potwierdzenie żywotności
-                        await ws.send(json.dumps({"type": "pong"}))
-
+                        add_log(f"🧾 Odebrano paragon (Stolik {data.get('table')})")
         except Exception as e:
-            err_msg = f"Błąd połączenia Cloud: {str(e)}"
-            add_log(err_msg)
-            logger.error(err_msg)
+            add_log(f"Błąd WS: {e}. Ponawiam za 5s...")
             await asyncio.sleep(5)
 
 def run_ws_loop():
@@ -312,9 +315,5 @@ def run_ws_loop():
     loop.run_until_complete(ws_client_loop())
 
 if __name__ == "__main__":
-    add_log("Uruchomiono system Elvis RPi Gateway.")
-    # Start WS w osobnym wątku
     threading.Thread(target=run_ws_loop, daemon=True).start()
-    # Start Flask
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=8080)
