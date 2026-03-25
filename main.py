@@ -437,4 +437,4 @@ async def admin(request: Request):
 
 @app.get("/master", response_class=HTMLResponse)
 async def master_page(request: Request):
-    return templates.TemplateResponse(request=request, name="master.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "client_id": GOOGLE_CLIENT_ID})
