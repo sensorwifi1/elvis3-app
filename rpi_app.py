@@ -291,11 +291,15 @@ def wydawka():
 async def ws_client_loop():
     while True:
         dk = get_device_key()
-        if not dk or not CLOUD_BASE_URL:
-            await asyncio.sleep(5)
+        conf = get_config()
+        base_url = conf.get("cloud_url", "http://127.0.0.1:8000")
+        
+        if not dk or not base_url or "127.0.0.1" in base_url:
+            add_log(f"⚠️ Skonfiguruj Cloud URL i Klucz ({dk or 'Brak klucza'})")
+            await asyncio.sleep(10)
             continue
             
-        ws_url = CLOUD_BASE_URL.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?device_key={dk}"
+        ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?device_key={dk}"
         try:
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=10) as ws:
                 add_log(f"Połączono z Chmurą ({dk})")
@@ -306,7 +310,7 @@ async def ws_client_loop():
                     if data.get("type") == "receipt":
                         add_log(f"🧾 Odebrano paragon (Stolik {data.get('table')})")
         except Exception as e:
-            add_log(f"Błąd WS: {e}. Ponawiam za 5s...")
+            add_log(f"Błąd WS ({base_url}): {e}. Ponawiam za 5s...")
             await asyncio.sleep(5)
 
 def run_ws_loop():

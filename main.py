@@ -72,7 +72,7 @@ async def get_device_status(device_key: str):
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
-db = firestore.Client(database="elvis3-db")
+db = firestore.Client()
 
 API_KEY = ""
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
@@ -154,7 +154,6 @@ async def staff_login(request: Request):
 async def get_menu(): 
     menu_dict = {d.id: d.to_dict() for d in db.collection("menu").stream()}
     return dict(sorted(menu_dict.items(), key=lambda x: int(x[1].get('sort_order', 99))))
-# Podmień ten fragment w Twoim pliku Python (main.py):
 
 @app.get("/api/get_layout")
 async def get_layout():

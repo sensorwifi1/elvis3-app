@@ -387,12 +387,15 @@
             const pin = document.getElementById('s-pin').value;
             const role = document.getElementById('s-role').value;
             if(!name || !pin) return alert("Wypełnij imię i PIN!");
-            const res = await fetch('/api/admin/save_staff', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name, pin, role })
-            });
-            const data = await res.json();
-            if(data.ok) { showToast("Użytkownik dodany!"); loadStaff(); } else alert(data.error);
+            try {
+                const res = await fetch('/api/admin/save_staff', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, pin, role })
+                });
+                const data = await res.json();
+                if(data.ok) { showToast("Użytkownik dodany!"); loadStaff(); } 
+                else alert("Błąd serwera: " + (data.error || "Nieznany błąd"));
+            } catch(e) { alert("Błąd połączenia: " + e.message); }
         }
 
         async function loadStaff() {
