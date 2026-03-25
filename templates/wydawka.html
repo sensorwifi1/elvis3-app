@@ -174,24 +174,19 @@
         }
 
         async function checkPosStatus() {
-            const url = localStorage.getItem('pos_url');
-            const indicator = document.getElementById('pos-status-indicator');
-            if(!url) return;
             try {
-                // Szybki ping do bramki (Timeout 2s żeby nie zawiesić strony)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2000);
-                const res = await fetch(`${url}/api/device_identity`, { signal: controller.signal });
-                
-                if(res.ok) {
-                    const data = await res.json();
-                    indicator.innerHTML = `POS: ${data.device_key || 'POŁĄCZONY'}`;
+                const res = await fetch('/api/device_status/Elvis_KWI_0326');
+                const data = await res.json();
+                const indicator = document.getElementById('pos-status-indicator');
+                if (data.status === 'online') {
+                    indicator.innerHTML = `POS: ONLINE (${data.ip || '?'})`;
                     indicator.className = "text-[9px] bg-green-900/50 text-green-400 px-2 py-0.5 rounded border border-green-800 shadow";
+                    if(data.ip) localStorage.setItem('pos_url', `http://${data.ip}:8080`);
+                } else {
+                    indicator.innerText = "POS: OFFLINE";
+                    indicator.className = "text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800 shadow";
                 }
-            } catch(e) {
-                indicator.innerText = "POS: BŁĄD POŁĄCZENIA";
-                indicator.className = "text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800 shadow";
-            }
+            } catch(e) { console.error("POS Status Error", e); }
         }
 
         // --- OBSŁUGA DANYCH GŁÓWNYCH ---
@@ -454,7 +449,13 @@
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
                 ws.onmessage = function(event) {
-                    try { const data = JSON.parse(event.data); if (data.type === 'update') loadData(); } catch(e){}
+                    try { 
+                        const data = JSON.parse(event.data); 
+                        if (data.type === 'update') {
+                            loadData();
+                            checkPosStatus();
+                        }
+                    } catch(e){}
                 };
                 ws.onclose = () => setTimeout(connectWebSocket, 2000);
             }

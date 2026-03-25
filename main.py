@@ -41,12 +41,34 @@ manager = ConnectionManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    device_key = websocket.query_params.get("device_key", "anonymous")
     await manager.connect(websocket)
+    print(f"WS Client connected: {device_key}")
     try:
         while True:
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "device_status":
+                    # Zapisujemy status urządzenia w Firestore
+                    db.collection("devices").document(device_key).set({
+                        "status": "online",
+                        "ip": msg.get("ip", "unknown"),
+                        "last_seen": datetime.now(timezone.utc).isoformat()
+                    }, merge=True)
+                    # Rozgłaszamy do paneli admina/wydawki że status się zmienił
+                    await manager.broadcast(json.dumps({"type": "update"}))
+            except: pass
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+        db.collection("devices").document(device_key).set({"status": "offline"}, merge=True)
+        await manager.broadcast(json.dumps({"type": "update"}))
+        print(f"WS Client disconnected: {device_key}")
+
+@app.get("/api/device_status/{device_key}")
+async def get_device_status(device_key: str):
+    doc = db.collection("devices").document(device_key).get()
+    return doc.to_dict() if doc.exists else {"status": "offline"}
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 

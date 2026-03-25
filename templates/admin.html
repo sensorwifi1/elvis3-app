@@ -75,10 +75,11 @@
         </div>
 
         <div id="tab-pos" class="tab">
-            <h2 style="color:var(--gold);">Status Drukarki Fiskalnej</h2>
-            <div class="pos-status">
-                <div class="dot online"></div>
-                <span>POSNET THERMAL XL2 - <b>POŁĄCZONO</b></span>
+            <h2 style="color:var(--gold);">Status Drukarki Fiskalnej (Bramka RPi)</h2>
+            <div id="pos-status-box" class="form-container" style="display:flex; align-items:center; gap:20px; font-size:1.2em;">
+                <div id="pos-dot" style="width:15px; height:15px; border-radius:50%; background:#d32f2f;"></div>
+                <div>Status: <b id="pos-status-text">OFFLINE</b></div>
+                <div id="pos-ip-info" style="color:#888; font-size:0.8em;">(Brak danych o IP)</div>
             </div>
             <div class="form-container">
                 <table class="pos-table" style="width:100%">
@@ -186,6 +187,7 @@
                 if(oRes.ok) allOrders = (await oRes.json()).orders || [];
                 
                 updateDashboardStats();
+                renderPOSList();
             } catch(e) { console.error("Sync error", e); }
         }
 
@@ -367,7 +369,30 @@
             });
         }
 
-        function renderPOSList() {
+        async function renderPOSList() {
+            // Pobieramy status RPi z serwera (używamy domyślnego klucza z elvis.md dla uproszczenia lub dynamicznie jeśli masz ich więcej)
+            try {
+                const res = await fetch('/api/device_status/Elvis_KWI_0326');
+                const data = await res.json();
+                const dot = document.getElementById('pos-dot');
+                const text = document.getElementById('pos-status-text');
+                const ip = document.getElementById('pos-ip-info');
+                
+                if (data.status === 'online') {
+                    dot.style.background = '#4caf50';
+                    dot.style.boxShadow = '0 0 10px #4caf50';
+                    text.innerText = 'ONLINE';
+                    text.style.color = '#4caf50';
+                    ip.innerText = `Lokalne IP: ${data.ip || '?'}`;
+                } else {
+                    dot.style.background = '#d32f2f';
+                    dot.style.boxShadow = 'none';
+                    text.innerText = 'OFFLINE';
+                    text.style.color = '#d32f2f';
+                    ip.innerText = '(Brak danych o IP)';
+                }
+            } catch(e) {}
+
             const list = document.getElementById('pos-receipts-list');
             const paid = allOrders.filter(o => o.paid);
             list.innerHTML = paid.map(o => `
