@@ -1,0 +1,4 @@
+flask>=2.3
+gunicorn>=21
+requests>=2.31
+websockets>=12

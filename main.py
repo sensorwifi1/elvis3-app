@@ -166,9 +166,9 @@ async def delete_staff(request: Request):
 async def staff_login(request: Request):
     data = await request.json()
     pin = str(data.get("pin"))
-    # MASTER PIN (Dla szefa - Hajdukiewicz)
-    if pin == "789643":
-        return {"ok": True, "name": "MASTER", "role": "admin"}
+    # MASTER PIN (szef — pełny dostęp)
+    if pin == "019283":
+        return {"ok": True, "name": "MASTER", "role": "master"}
     # Domyślny admin
     if pin == "102938":
         return {"ok": True, "name": "ADMIN", "role": "admin"}
@@ -302,7 +302,6 @@ async def init_db(request: Request):
     db.collection("config").document("floor_plan").set(default_layout)
     
     # Domyślny personel
-    db.collection("staff").document("789643").set({"name": "MASTER", "role": "admin"})
     db.collection("staff").document("102938").set({"name": "ADMIN", "role": "admin"})
 
     await manager.broadcast(json.dumps({"type": "update"}))

@@ -24,9 +24,61 @@
             100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
 
-        .table-node { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-weight: bold; transition: all 0.3s; border: 2px solid rgba(0,0,0,0.3); font-size: 0.8rem; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.4); }
+        /* --- MAPA SALI --- */
+        .table-node {
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            border-radius: 12px; font-weight: 800; font-size: 1em; cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.1);
+            user-select: none;
+        }
         .table-node:active { transform: scale(0.9); }
-        
+        .t-free  { background: #1f6b2e; color: #a7f3d0; }
+        .t-open  { background: #1e40af; color: #bfdbfe; }
+        .t-ready { background: #15803d; color: #fff; border-color: #4ade80 !important; box-shadow: 0 0 14px rgba(74,222,128,0.5) !important; }
+        .t-dirty { background: #6b21a8; color: #e9d5ff; }
+        .t-call  { background: #1d4ed8; color: #fff; animation: pulseCall 1s infinite alternate; border: 2px solid #fff !important; }
+        .t-pay   { background: #92400e; color: #fef3c7; animation: pulsePay 1s infinite alternate; border: 2px solid #fbbf24 !important; }
+        @keyframes pulseCall { from { background: #1d4ed8; } to { background: #60a5fa; } }
+        @keyframes pulsePay  { from { background: #92400e; } to { background: #d97706; } }
+
+        /* --- GHOST TOAST --- */
+        #ghost-toast {
+            position: fixed; bottom: -120px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; transition: bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none; min-width: 280px; text-align: center;
+        }
+        #ghost-toast.show { bottom: 40px; }
+        .ghost-bubble {
+            background: rgba(10,10,10,0.96); border: 1px solid #d4af37;
+            border-radius: 20px; padding: 14px 28px; color: #fff; font-weight: 700;
+            font-size: 0.95rem; box-shadow: 0 0 30px rgba(212,175,55,0.3), 0 10px 40px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px); animation: ghostFloat 2.5s ease-in-out infinite;
+        }
+        @keyframes ghostFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
+
+        /* --- GHOST CONFIRM --- */
+        #ghost-confirm {
+            position: fixed; inset: 0; z-index: 9998; display: flex;
+            align-items: flex-end; justify-content: center; padding-bottom: 40px;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        #ghost-confirm.show { opacity: 1; pointer-events: all; }
+        .ghost-confirm-bubble {
+            background: rgba(12,12,12,0.98); border: 1px solid #d4af37;
+            border-radius: 24px; padding: 28px 32px; color: #fff; text-align: center;
+            box-shadow: 0 0 60px rgba(212,175,55,0.35), 0 20px 60px rgba(0,0,0,0.9);
+            max-width: 360px; width: 90%;
+            animation: ghostPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes ghostPop { from { transform:scale(0.5) translateY(60px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
+        .ghost-confirm-bubble p { margin: 0 0 20px; font-size: 1.05rem; line-height: 1.5; }
+        .ghost-btn-yes { background: #d4af37; color: #000; border: none; padding: 12px 28px; border-radius: 12px; font-weight: 800; font-size: 0.95rem; cursor: pointer; margin-right: 10px; transition: 0.2s; }
+        .ghost-btn-yes:hover { background: #fff; }
+        .ghost-btn-no  { background: #222; color: #888; border: 1px solid #444; padding: 12px 28px; border-radius: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
+        .ghost-btn-no:hover { color: #fff; border-color: #888; }
+
         .ticket-compact { font-size: 0.85rem; line-height: 1.2; }
     </style>
 </head>
@@ -106,20 +158,33 @@
         <div class="col-span-3 bg-gray-800 rounded-xl flex flex-col border border-gray-700 overflow-hidden shadow-2xl">
             <div class="bg-gray-700/50 p-2 font-bold text-center border-b border-gray-600 text-xs tracking-widest flex justify-between px-4 items-center">
                 <span>🗺️ SALA</span>
-                <span id="pos-status-indicator" class="text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800">POS ROZŁĄCZONY</span>
-            </div>
-            
-            <div class="flex flex-wrap gap-2 text-[9px] justify-center bg-gray-900 p-2 border-b border-gray-700 font-bold text-gray-400">
-                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-green-700 rounded-sm"></div> Wolny</span>
-                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-blue-800 rounded-sm"></div> Zajęty</span>
-                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-red-600 rounded-sm"></div> Kelner</span>
-                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-yellow-600 rounded-sm"></div> Rachunek</span>
-                <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-purple-800 rounded-sm"></div> Brudny</span>
+                <span id="pos-status-indicator" class="text-[9px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-800">POS OFFLINE</span>
             </div>
 
-            <div class="p-4 flex-1 relative overflow-auto bg-gray-950">
-                <div id="floor-map" class="relative mx-auto border border-gray-800/50 bg-black/50 rounded-lg shadow-inner"></div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[9px] justify-center bg-gray-900 px-2 py-1.5 border-b border-gray-700 font-bold text-gray-400">
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#1f6b2e;border-radius:3px;"></div> Wolny</span>
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#1e40af;border-radius:3px;"></div> Zajęty</span>
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#15803d;border-radius:3px;border:1px solid #4ade80;"></div> Gotowe</span>
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#6b21a8;border-radius:3px;"></div> Brudny</span>
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#1d4ed8;border-radius:3px;"></div> Kelner</span>
+                <span class="flex items-center gap-1"><div style="width:10px;height:10px;background:#92400e;border-radius:3px;"></div> Rachunek</span>
             </div>
+
+            <div id="floor-map-wrap" class="flex-1 relative overflow-auto bg-gray-950 p-3">
+                <div id="floor-map" class="relative mx-auto bg-black/40 rounded-lg" style="border:1px solid #1f2937;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GHOST TOAST INFO -->
+    <div id="ghost-toast"><div class="ghost-bubble" id="ghost-toast-text">...</div></div>
+
+    <!-- GHOST CONFIRM -->
+    <div id="ghost-confirm">
+        <div class="ghost-confirm-bubble">
+            <p id="ghost-confirm-text">Czy na pewno?</p>
+            <button class="ghost-btn-yes" id="ghost-btn-yes">TAK</button>
+            <button class="ghost-btn-no"  onclick="closeGhostConfirm()">ANULUJ</button>
         </div>
     </div>
 
@@ -142,8 +207,27 @@
         let layoutData = { width: 10, height: 10, tables: [] };
         let menuItems = {};
         let currentCart = [];
-        let globalOrders = []; // Potrzebne do odświeżania zegarów
-        const MAP_SCALE = 42;
+        let globalOrders = [];
+
+        // --- GHOST TOAST ---
+        let _toastTimer = null;
+        function showToast(msg) {
+            const t = document.getElementById('ghost-toast');
+            document.getElementById('ghost-toast-text').innerText = msg;
+            t.classList.add('show');
+            clearTimeout(_toastTimer);
+            _toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+        }
+        let _ghostYes = null;
+        function showGhostConfirm(msg, onYes) {
+            document.getElementById('ghost-confirm-text').innerHTML = msg;
+            _ghostYes = onYes;
+            document.getElementById('ghost-btn-yes').onclick = () => { closeGhostConfirm(); onYes(); };
+            document.getElementById('ghost-confirm').classList.add('show');
+        }
+        function closeGhostConfirm() {
+            document.getElementById('ghost-confirm').classList.remove('show');
+        }
 
         // ZEGAR GŁÓWNY I ODŚWIEŻANIE CZASU NA BONACH
         setInterval(() => { 
@@ -209,61 +293,75 @@
         }
 
         // --- MAPA I BRUDNE STOLIKI ---
+        function getMapScale() {
+            const wrap = document.getElementById('floor-map-wrap');
+            const w = wrap.clientWidth - 24;
+            const h = wrap.clientHeight - 24;
+            const scaleW = Math.floor(w / Math.max(layoutData.width, 1));
+            const scaleH = Math.floor(h / Math.max(layoutData.height, 1));
+            return Math.max(32, Math.min(scaleW, scaleH, 60));
+        }
+
         function drawMap(actives, orders) {
+            const SCALE = getMapScale();
             const f = document.getElementById('floor-map');
-            f.style.width = (layoutData.width * MAP_SCALE) + 'px';
-            f.style.height = (layoutData.height * MAP_SCALE) + 'px';
+            f.style.width  = (layoutData.width  * SCALE) + 'px';
+            f.style.height = (layoutData.height * SCALE) + 'px';
             f.innerHTML = '';
 
             layoutData.tables.forEach(t => {
                 const act = actives.find(a => String(a.table_number) === String(t.n));
-                const tableOrders = orders.filter(o => String(o.table_number) === String(t.n) && o.session_id === act?.session_id);
-                
-                let statusClass = 'bg-gray-800 text-gray-500 border-gray-700'; // Domyślnie Wolny
+                const tableOrders = orders.filter(o =>
+                    String(o.table_number) === String(t.n) && o.session_id === act?.session_id
+                );
+
+                let cls = 't-free';
                 let label = t.n;
 
                 if (act) {
-                    const hasOrders = tableOrders.length > 0;
-                    const allPaid = hasOrders && tableOrders.every(o => o.paid === True || o.paid === true);
-                    
+                    const activeOrders = tableOrders.filter(o => !o.paid);
+                    const allPaid = tableOrders.length > 0 && tableOrders.every(o => o.paid === true);
+                    const hasReady = activeOrders.some(o => o.status === 'ready');
+
                     if (allPaid) {
-                        // ZAPŁACONE - BRUDNY STOLIK (Czeka na sprzątanie)
-                        statusClass = 'bg-purple-800 text-purple-100 border-purple-500 shadow-lg shadow-purple-900/50';
-                        label = `${t.n} 🧹`;
+                        cls = 't-dirty'; label = `${t.n} 🧹`;
                     } else if (act.pay_request) {
-                        statusClass = 'bg-yellow-600 text-yellow-900 border-yellow-400 pulse-yellow z-10';
-                        label = `${t.n} 💳`;
+                        cls = 't-pay'; label = `${t.n} 💳`;
                     } else if (act.call_waiter) {
-                        statusClass = 'bg-red-600 text-red-100 border-red-400 pulse-red z-10';
-                        label = `${t.n} 🛎️`;
+                        cls = 't-call'; label = `${t.n} 🛎`;
+                    } else if (hasReady) {
+                        cls = 't-ready'; label = `${t.n} ✓`;
                     } else {
-                        // ZAJĘTY, W TRAKCIE
-                        statusClass = 'bg-blue-800 text-blue-100 border-blue-500';
+                        cls = 't-open';
                     }
                 }
 
                 const div = document.createElement('div');
-                div.className = `table-node ${statusClass}`;
-                div.style.width = (MAP_SCALE - 4) + 'px';
-                div.style.height = (MAP_SCALE - 4) + 'px';
-                div.style.left = (t.x * MAP_SCALE) + 'px';
-                div.style.top = (t.y * MAP_SCALE) + 'px';
-                div.innerHTML = `<span>${label}</span>`;
-                
-                // Zwalnianie stolika kliknięciem (np. przez Kelnera/Wydawkę)
-                if(statusClass.includes('purple')) {
+                div.className = `table-node ${cls}`;
+                div.style.width  = (SCALE - 6) + 'px';
+                div.style.height = (SCALE - 6) + 'px';
+                div.style.left   = (t.x * SCALE + 3) + 'px';
+                div.style.top    = (t.y * SCALE + 3) + 'px';
+                div.style.fontSize = Math.max(10, SCALE * 0.22) + 'px';
+                div.innerText = label;
+
+                if (cls === 't-dirty') {
                     div.onclick = () => clearTable(t.n);
                 }
-                
+
                 f.appendChild(div);
             });
         }
 
         async function clearTable(num) {
-            if(confirm(`Czy stolik ${num} został posprzątany i jest gotowy na nowych gości?`)) {
-                await fetch(`/api/clear_table/${num}`, { method: 'POST' });
-                loadData();
-            }
+            showGhostConfirm(
+                `🧹 Stolik <b>${num}</b> posprzątany?<br><small style="color:#888;font-weight:400">Stolik zostanie zwolniony dla nowych gości.</small>`,
+                async () => {
+                    await fetch(`/api/clear_table/${num}`, { method: 'POST' });
+                    showToast(`✅ Stolik ${num} zwolniony!`);
+                    loadData();
+                }
+            );
         }
 
         // --- BONY KUCHENNE ---
@@ -274,6 +372,7 @@
 
             const groups = {};
             // Filtrujemy opłacone zamówienia! Jeśli zapłacone, znika z wydawki.
+            // table_number "0" to stary format wynos (bez numeru) — ukrywamy. "W1"-"W20" to nowe wynos.
             allOrders.filter(o => o.status !== 'closed' && o.table_number !== "0" && !o.paid).forEach(o => {
                 if(!groups[o.table_number]) groups[o.table_number] = { orders: [], total: 0, ready: true };
                 groups[o.table_number].orders.push(o);
@@ -285,10 +384,15 @@
                 const firstTimestamp = data.orders.length > 0 ? data.orders[data.orders.length-1].timestamp : null;
                 const timerText = getTimerText(firstTimestamp);
 
+                const isWynos = tbl.startsWith('W');
+                const tableLabel = isWynos ? `🛵 WYNOS #${tbl.substring(1)}` : `STÓŁ ${tbl}`;
+                const headerColor = isWynos ? 'text-purple-300' : 'text-blue-300';
+                const headerBg = isWynos ? 'bg-purple-900/60' : 'bg-gray-700';
+
                 const html = `
-                    <div class="bg-gray-800 border border-gray-600 rounded-lg overflow-hidden ticket-compact shadow-xl relative">
-                        <div class="bg-gray-700 p-1.5 flex justify-between items-center px-3 border-b border-gray-600">
-                            <span class="font-black text-blue-300 tracking-wider">STÓŁ ${tbl}</span>
+                    <div class="bg-gray-800 border ${isWynos ? 'border-purple-700' : 'border-gray-600'} rounded-lg overflow-hidden ticket-compact shadow-xl relative">
+                        <div class="${headerBg} p-1.5 flex justify-between items-center px-3 border-b ${isWynos ? 'border-purple-800' : 'border-gray-600'}">
+                            <span class="font-black ${headerColor} tracking-wider">${tableLabel}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-mono bg-black text-yellow-400 px-1.5 py-0.5 rounded shadow-inner border border-gray-600">⏱️ ${timerText}</span>
                             </div>
@@ -317,8 +421,8 @@
                         </div>
                         
                         <div class="p-2 bg-gray-800 border-t border-gray-700 flex gap-2">
-                            <button onclick="markPaid('${tbl}')" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-black py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">💳 ZAPŁAĆ (${data.total.toFixed(2)} zł)</button>
-                            ${data.ready ? `<button onclick="wydajCalyStol('${tbl}', '${data.orders[0].session_id}')" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">🍽️ WYDAJ STÓŁ</button>` : ''}
+                            ${!isWynos ? `<button onclick="markPaid('${tbl}')" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-black py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">💳 ZAPŁAĆ (${data.total.toFixed(2)} zł)</button>` : ''}
+                            ${data.ready ? `<button onclick="wydajCalyStol('${tbl}', '${data.orders[0].session_id}')" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded font-black text-[10px] uppercase shadow-md transition-transform active:scale-95">${isWynos ? '🛵 WYDAJ WYNOS' : '🍽️ WYDAJ STÓŁ'}</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -348,6 +452,8 @@
             await fetch(`/api/wydawka/wydaj_bon`, {
                 method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sessionId, table_number: tableNum })
             });
+            const label = tableNum.startsWith('W') ? `Wynos #${tableNum.substring(1)}` : `Stół ${tableNum}`;
+            showToast(`🍽️ ${label} — wydano!`);
             loadData();
         }
 
@@ -374,7 +480,7 @@
             grid.innerHTML = Object.entries(menuItems).map(([key, item]) => `
                 <button onclick="addToCart('${key}')" class="bg-gray-700 hover:bg-gray-600 p-1.5 rounded-lg border border-gray-600 flex flex-col items-center justify-between transition-transform active:scale-95 shadow-md">
                     <div class="w-full h-12 bg-black rounded overflow-hidden mb-1">
-                        <img src="/static/images/${item.image}" onerror="this.style.display='none'" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity">
+                        <img src="/static/images/${item.image}" onerror="this.style.display='none'" class="w-full h-full object-contain opacity-90 hover:opacity-100 transition-opacity p-0.5">
                     </div>
                     <span class="text-[10px] font-bold truncate w-full text-center px-1 text-gray-100">${item.name}</span>
                     <span class="text-blue-400 text-[11px] font-black">${item.price} zł</span>
@@ -401,18 +507,27 @@
         }
 
         async function submitCart() {
-            if (currentCart.length === 0) return alert("Koszyk jest pusty!");
+            if (currentCart.length === 0) return showToast("🛒 Koszyk jest pusty!");
+
+            // Numer wynos 1-20, cyklicznie
+            let wynosNum = parseInt(localStorage.getItem('wynos_counter') || '0') + 1;
+            if (wynosNum > 20) wynosNum = 1;
+            localStorage.setItem('wynos_counter', wynosNum);
+
             const session_id = "wynos_" + Math.random().toString(36).substr(2, 9);
+            const tableNum = "W" + wynosNum;
+
             for (const item of currentCart) {
                 await fetch('/api/orders', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        table_number: "0", burger_name: item.name, price: item.price,
+                        table_number: tableNum, burger_name: item.name, price: item.price,
                         to_kitchen: item.to_kitchen !== undefined ? item.to_kitchen : true, session_id: session_id
                     })
                 });
             }
-            currentCart = []; renderCart(); loadData(); 
+            currentCart = []; renderCart(); loadData();
+            showToast(`🛵 Wynos #${wynosNum} — wysłano do kuchni!`);
         }
 
         // --- BEZPIECZEŃSTWO ---
@@ -450,6 +565,9 @@
         }
         
         startApp();
+        window.addEventListener('resize', () => {
+            if(globalOrders.length > 0 || layoutData.tables.length > 0) loadData();
+        });
     </script>
 </body>
 </html>
