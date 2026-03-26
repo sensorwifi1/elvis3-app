@@ -8,9 +8,6 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional
 from collections import defaultdict
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
-import jwt
 
 app = FastAPI()
 APP_DIR = Path(__file__).resolve().parent
@@ -207,36 +204,6 @@ async def save_layout(request: Request):
         return {"ok": False, "error": str(e)}
 
 # --- AUTHENTICATION & ROLES ---
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID_HERE")
-MASTER_EMAIL = "hajdukiewicz@gmail.com"
-
-@app.post("/api/auth/login")
-async def auth_login(request: Request, response: Response):
-    data = await request.json()
-    token = data.get("credential")
-    email = None
-    try:
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-        email = idinfo['email']
-    except Exception as e:
-        try:
-            decoded = jwt.decode(token, options={"verify_signature": False})
-            email = decoded.get('email')
-        except:
-            return {"ok": False, "error": str(e)}
-
-    if not email:
-        return {"ok": False, "error": "Brak email w tokenie"}
-
-    role = "user"
-    if email == MASTER_EMAIL:
-        role = "master"
-    else:
-        doc = db.collection("users").document(email).get()
-        if doc.exists:
-            role = doc.to_dict().get("role", "user")
-
-    return {"ok": True, "email": email, "role": role}
 
 @app.post("/api/admin/set_role")
 async def set_role(request: Request):
@@ -246,7 +213,7 @@ async def set_role(request: Request):
     
     target_email = data.get("email")
     new_role = data.get("role")
-    if target_email == MASTER_EMAIL: return {"error": "Nie można zmienić Mastera"}
+    if not target_email: return {"error": "Brak email"}
     if auth_role == "admin" and new_role == "admin": return {"error": "Admin nie może nadać roli Admina"}
     
     db.collection("users").document(target_email).set({"role": new_role})
@@ -669,7 +636,7 @@ async def admin(request: Request):
 
 @app.get("/master", response_class=HTMLResponse)
 async def master_page(request: Request):
-    return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "client_id": GOOGLE_CLIENT_ID, "brand": os.environ.get("BRAND", "ELVIS")})
+    return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/portal", response_class=HTMLResponse)
 async def portal_page(request: Request):
