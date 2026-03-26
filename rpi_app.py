@@ -16,6 +16,7 @@ from flask import Flask, jsonify, request, render_template_string, redirect, ses
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
+app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "elvis-rpi-secret-key-2026")
 BRAND = os.environ.get("BRAND", "ELVIS")
 
@@ -88,7 +89,7 @@ INDEX_HTML = """
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Elvis RPi zjedz | Gateway</title>
+    <title>{{ brand }} RPi | Gateway</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root { --gold: #d4af37; --bg: #0a0a0a; --card: #161616; --green: #388e3c; --red: #d32f2f; }
@@ -139,7 +140,7 @@ INDEX_HTML = """
 <body>
     <div class="container">
         <header>
-            <h1>ELVIS RPI <span>GATEWAY</span></h1>
+            <h1>{{ brand }} RPI <span>GATEWAY</span></h1>
             {% if has_internet %}
             <div style="display:flex; gap:10px;">
                 <span style="color:var(--green); font-weight:bold; font-size:0.8em; border:1px solid var(--green); padding:5px 10px; border-radius:5px;">INTERNET OK</span>
@@ -368,7 +369,8 @@ def index():
         cloud_url=CLOUD_BASE_URL,
         local_ip=get_local_ip(),
         has_internet=has_internet,
-        config=CONFIG
+        config=CONFIG,
+        brand=BRAND
     )
 
 @app.route("/api/wifi/scan")

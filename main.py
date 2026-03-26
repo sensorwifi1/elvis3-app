@@ -309,7 +309,7 @@ async def init_db(request: Request):
     return {"ok": True, "message": "Baza zainicjalizowana domyślnymi danymi."}
 
 @app.get("/api/admin/export_db")
-async def export_db(auth_role: str = Cookie(None)):
+async def export_db(auth_role: Optional[str] = None):
     if auth_role != "master": return JSONResponse({"error": "Brak uprawnień"}, status_code=403)
     
     collections = ["menu", "staff", "users", "config", "active_tables", "orders"]
@@ -647,30 +647,31 @@ async def index_page(request: Request, table: Optional[str] = None, burger_sessi
             table_ref.set({"table_number": int(table), "session_id": burger_session}, merge=True)
 
     # UŻYCIE ARGUMENTU NAZWANEGO context=
+    ctx["brand"] = os.environ.get("BRAND", "ELVIS")
     resp = templates.TemplateResponse(request=request, name="index.html", context=ctx)
     resp.set_cookie(key="burger_session", value=burger_session, max_age=86400)
     return resp
 
 @app.get("/wydawka", response_class=HTMLResponse)
 async def wydawka_page(request: Request):
-    return templates.TemplateResponse(request=request, name="wydawka.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="wydawka.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/kds", response_class=HTMLResponse)
 async def kds(request: Request):
-    return templates.TemplateResponse(request=request, name="kds.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="kds.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/waiter", response_class=HTMLResponse)
 async def waiter(request: Request):
-    return templates.TemplateResponse(request=request, name="waiter.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="waiter.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin(request: Request):
-    return templates.TemplateResponse(request=request, name="admin.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="admin.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/master", response_class=HTMLResponse)
 async def master_page(request: Request):
-    return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "client_id": GOOGLE_CLIENT_ID})
+    return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "client_id": GOOGLE_CLIENT_ID, "brand": os.environ.get("BRAND", "ELVIS")})
 
 @app.get("/portal", response_class=HTMLResponse)
 async def portal_page(request: Request):
-    return templates.TemplateResponse(request=request, name="portal.html", context={"request": request})
+    return templates.TemplateResponse(request=request, name="portal.html", context={"request": request, "brand": os.environ.get("BRAND", "ELVIS")})

@@ -2,62 +2,103 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>MASTER PANEL</title>
+    <title>{{ brand }} MASTER PANEL</title>
     <style>
-        body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+        :root { --gold: #d4af37; --bg: #0a0a0a; --card: #1a1a1a; --danger: #ff5252; --shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        body { background: var(--bg); color: #ececec; font-family: 'Inter', sans-serif; padding: 40px; margin: 0; line-height: 1.6; }
         .hidden { display: none; }
-        input, select, button { padding: 10px; margin: 5px; border-radius: 5px; border: 1px solid #333; background: #222; color: #fff; }
-        button { background: #d4af37; color: #000; font-weight: bold; cursor: pointer; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: var(--card); border: 1px solid #333; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: var(--shadow); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        h1, h2, h3, h4 { color: var(--gold); margin-top: 0; letter-spacing: 0.5px; }
+        p { color: #aaa; font-size: 0.9em; }
+        input, select, textarea { width: 100%; box-sizing: border-box; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #000; color: #fff; outline: none; transition: border-color 0.3s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+        button { background: var(--gold); color: #000; font-weight: 800; cursor: pointer; border: none; padding: 12px 24px; border-radius: 8px; text-transform: uppercase; font-size: 0.85em; transition: all 0.3s; width: 100%; margin-top: 10px; }
+        button:hover { background: #f0c94d; filter: brightness(1.1); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { background: #ff7676; box-shadow: 0 0 15px rgba(255, 82, 82, 0.3); }
+        .btn-secondary { background: #333; color: #fff; }
+        .btn-secondary:hover { background: #444; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.7em; font-weight: bold; margin-left: 10px; vertical-align: middle; }
+        .badge-master { background: var(--gold); color: #000; }
+        .badge-admin { background: #2196f3; color: #fff; }
+        hr { border: 0; border-top: 1px solid #333; margin: 20px 0; }
+        a.button-link { display: block; text-align: center; background: var(--gold); color: #000; padding: 15px; font-weight: bold; text-decoration: none; border-radius: 8px; margin-top: 20px; }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
-    <h1 style="color:#d4af37">PANEL DOSTĘPÓW (MASTER/ADMIN)</h1>
-    
-    <div id="login-section">
-        <p>Zaloguj się kontem Google:</p>
-        <div id="g_id_onload"
-             data-client_id="{{ client_id }}"
-             data-callback="handleCredentialResponse">
-        </div>
-        <div class="g_id_signin" data-type="standard"></div>
-    </div>
-
-    <div id="dashboard-section" class="hidden">
-        <h2 id="welcome-text"></h2>
+    <div class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+            <h1>{{ brand }} <span style="font-weight: 400; color: #666;">|</span> MASTER CONSOLE</h1>
+            <p>Centralna administracja systemem POS i dostępami Google</p>
+        </header>
         
-        <div style="border:1px solid #333; padding:15px; margin-bottom:15px; background: #2a0000;" id="danger-zone">
-            <h3 style="color:#ff5252">Zarządzanie Czystką (DANGER ZONE)</h3>
-            <p>Ta akcja bezpowrotnie usunie wszystkie produkty, zamówienia, konfiguracje sali i stoliki z bazy danych.</p>
-            <button onclick="wipeDatabase()" style="background:#ff5252; color:#fff; font-size:1.2em; padding:15px;">Wyczyść Całą Bazę Danych</button>
-            <hr style="border-color:#444">
-            <h3 style="color:#d4af37">Inicjalizacja i Migracja</h3>
-            <p>Buduj nową bazę firestore z domyślnymi produktami i stolikiem.</p>
-            <button onclick="initDatabase()">Zainicjalizuj Bazę Danych</button>
-            <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
-                <h4>Eksport / Import JSON</h4>
-                <button onclick="exportJSON()" style="background:#444; color:#fff;">Pobierz JSON (Backup)</button>
-                <div style="margin-top:10px;">
-                    <textarea id="import-data" placeholder="Wklej tutaj JSON do importu..." style="width:100%; height:100px; background:#000; color:#0f0; font-family:monospace;"></textarea>
-                    <button onclick="importJSON()" style="background:#444; color:#fff;">Importuj z JSON</button>
+        <div id="login-section" class="card" style="text-align: center; max-width: 400px; margin: 0 auto;">
+            <h3>Autoryzacja Deweloperska</h3>
+            <p>Zaloguj się kontem Google, aby uzyskać dostęp do narzędzi administracyjnych.</p>
+            <div id="g_id_onload"
+                 data-client_id="{{ client_id }}"
+                 data-callback="handleCredentialResponse">
+            </div>
+            <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="filled_black" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+        </div>
+
+        <div id="dashboard-section" class="hidden">
+            <div class="card" style="border-left: 4px solid var(--gold);">
+                <h2 id="welcome-text">Panel Sterowania</h2>
+                <div id="role-info"></div>
+            </div>
+            
+            <div class="card" id="danger-zone">
+                <h3 style="color:var(--danger)">☢️ Strefa Krytyczna</h3>
+                <p>Narzędzia do resetowania bazy danych i inicjalizacji projektu.</p>
+                <button class="btn-danger" onclick="wipeDatabase()">Wyczyść Całą Bazę Danych (WIPE)</button>
+                <hr>
+                <h3>🏗️ Inicjalizacja Projektu</h3>
+                <p>Buduj nową bazę Firestore z domyślnymi produktami, stolikami i konfiguracją personelu.</p>
+                <button onclick="initDatabase()">Zainicjalizuj Bazę Danych (BASE)</button>
+                
+                <hr>
+                <h3>🔌 JSON API & Backup</h3>
+                <p>Eksportuj lub importuj całą zawartość bazy danych w formacie JSON.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="btn-secondary" onclick="exportJSON()">Pobierz Backup (JSON)</button>
+                    <button class="btn-secondary" onclick="document.getElementById('import-section').classList.toggle('hidden')">Opcje Importu</button>
+                </div>
+                
+                <div id="import-section" class="hidden" style="margin-top: 20px; border-top: 1px dashed #444; padding-top: 15px;">
+                    <textarea id="import-data" placeholder="Wklej tutaj surowe dane JSON do przywrócenia..."></textarea>
+                    <button class="btn-secondary" onclick="importJSON()">Wykonaj Import z JSON</button>
                 </div>
             </div>
-        </div>
 
-        <div style="border:1px solid #333; padding:15px; margin-bottom:15px;" id="role-manager">
-            <h3>Nadaj Uprawnienia Master/Admin (Google Auth)</h3>
-            <input type="email" id="target-email" placeholder="Adres email Google">
-            <select id="target-role">
-                <option value="user">Użytkownik</option>
-                <option value="admin">Admin (Zarządzanie POS)</option>
-            </select>
-            <button onclick="grantRole()">NADAJ ROLĘ GOOGLE</button>
-        </div>
+            <div class="card" id="role-manager">
+                <h3>👥 Zarządzanie Uprawnieniami</h3>
+                <p>Przyznawaj role administracyjne dla kont Google (wymagane do logowania do tego panelu).</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end;">
+                    <div>
+                        <label>Email użytkownika:</label>
+                        <input type="email" id="target-email" placeholder="uzytkownik@gmail.com">
+                    </div>
+                    <div>
+                        <label>Rola:</label>
+                        <select id="target-role">
+                            <option value="user">Użytkownik (User)</option>
+                            <option value="admin">Administrator (Admin)</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="grantRole()">NADAJ UPRAWNIENIA GOOGLE</button>
+            </div>
 
-        <div style="border:1px solid #333; padding:15px;">
-            <h3>Zarządzanie Restauracją</h3>
-            <p>Aby zarządzać menu, salą oraz załogą (PINy autoryzacyjne), przejdź do centralnego portalu pracowniczego i zaloguj się PINem Mastera.</p>
-            <a href="/portal" style="display:inline-block; background:#d4af37; color:#000; padding:15px 20px; font-weight:bold; text-decoration:none; border-radius:5px;">Przejdź do Portalu (KDS/WYDAWKA/ADMIN)</a>
+            <div class="card" style="background: linear-gradient(145deg, #1a1a1a, #252525);">
+                <h3>🚀 Portal Operacyjny</h3>
+                <p>Przejdź do głównego portalu obsługi (Waiter, KDS, Admin), aby zarządzać bieżącą pracą lokalu.</p>
+                <a href="/portal" class="button-link">OTWÓRZ PORTAL KELNERA/KUCHNI</a>
+            </div>
         </div>
     </div>
 
@@ -74,6 +115,9 @@
             
             if (data.ok) {
                 myRole = data.role;
+                // Ustawiamy cookie dla API które go wymaga (np. export_db)
+                document.cookie = `auth_role=${myRole}; path=/; max-age=3600`;
+                
                 document.getElementById('login-section').classList.add('hidden');
                 
                 if (myRole === "master" || myRole === "admin") {
@@ -114,12 +158,11 @@
         }
 
         async function grantRole() {
-            const role = getCookie("auth_role") || myRole;
             const res = await fetch('/api/admin/set_role', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    auth_role: role,
+                    auth_role: myRole,
                     email: document.getElementById('target-email').value,
                     role: document.getElementById('target-role').value
                 })
@@ -142,14 +185,14 @@
         }
 
         async function exportJSON() {
-            const res = await fetch('/api/admin/export_db');
-            if (!res.ok) { alert("Błąd eksportu"); return; }
+            const res = await fetch(`/api/admin/export_db?auth_role=${myRole}`);
+            if (!res.ok) { alert("Błąd eksportu - brak uprawnień"); return; }
             const data = await res.json();
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `elvis_db_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `${os.environ.get('BRAND', 'ELVIS')}_db_backup_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
         }
 
