@@ -16,8 +16,8 @@ from flask import Flask, jsonify, request, render_template_string, redirect, ses
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "elvis-rpi-secret-key-2026")
+BRAND = os.environ.get("BRAND", "ELVIS")
 
 # Ścieżki danych
 DATA_DIR = Path(os.environ.get("DATA_DIR", "./data"))
@@ -61,8 +61,22 @@ event_log = []
 
 def add_log(msg):
     ts = datetime.now().strftime("%H:%M:%S")
-    event_log.append(f"[{ts}] {msg}")
-    if len(event_log) > 20: event_log.pop(0)
+    event_log.insert(0, f"[{ts}] {msg}")
+    if len(event_log) > 50: event_log.pop()
+
+# --- START BACKGROUND THREADS ---
+# Uruchamiamy pętlę WS przy imporcie (dla Gunicorn)
+def run_ws_loop():
+    asyncio.run(ws_client_loop())
+
+def start_ws_thread():
+    t = threading.Thread(target=run_ws_loop, daemon=True)
+    t.start()
+    return t
+
+_ws_thread = None
+if not os.environ.get("WERKZEUG_RUN_MAIN") == "true": # Unikamy podwójnego startu w trybie dev Flask
+    _ws_thread = start_ws_thread()
 
 def get_device_key():
     return KEY_FILE.read_text().strip() if KEY_FILE.exists() else ""
@@ -463,5 +477,5 @@ def run_ws_loop():
     loop.run_until_complete(ws_client_loop())
 
 if __name__ == "__main__":
-    threading.Thread(target=run_ws_loop, daemon=True).start()
+    # W trybie bezpośrednim (python rpi_app.py) Flask sam obsłuży wątki
     app.run(host="0.0.0.0", port=8080)
