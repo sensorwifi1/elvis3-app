@@ -65,20 +65,7 @@ def add_log(msg):
     event_log.insert(0, f"[{ts}] {msg}")
     if len(event_log) > 50: event_log.pop()
 
-# --- START BACKGROUND THREADS ---
-# Uruchamiamy pętlę WS przy imporcie (dla Gunicorn)
-def run_ws_loop():
-    asyncio.run(ws_client_loop())
-
-def start_ws_thread():
-    t = threading.Thread(target=run_ws_loop, daemon=True)
-    t.start()
-    return t
-
-_ws_thread = None
-if not os.environ.get("WERKZEUG_RUN_MAIN") == "true": # Unikamy podwójnego startu w trybie dev Flask
-    _ws_thread = start_ws_thread()
-
+# --- HELPERS ---
 def get_device_key():
     return KEY_FILE.read_text().strip() if KEY_FILE.exists() else ""
 
@@ -235,7 +222,17 @@ INDEX_HTML = """
             <script>
                 async function authPin() {
                     const pin = document.getElementById('auth-pin').value;
-                    // Uderzamy w chmurę
+                    const msgEl = document.getElementById('auth-msg');
+
+                    // Najpierw sprawdź lokalne hasło master (bez chmury)
+                    const localRes = await fetch('/login_local', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({pin: pin})
+                    });
+                    const localData = await localRes.json();
+                    if (localData.ok) { location.reload(); return; }
+
+                    // Logowanie przez chmurę dla pozostałych pracowników
                     try {
                         const res = await fetch('{{ cloud_url }}/api/auth/staff_login', {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -243,19 +240,18 @@ INDEX_HTML = """
                         });
                         const data = await res.json();
                         if (data.ok) {
-                            // Localne przekazanie faktu bycia zalogowanym, aby backend flask mógł zapamiętać PIN w sesji
                             await fetch('/login_pin', {
                                 method: 'POST', headers: {'Content-Type': 'application/json'},
                                 body: JSON.stringify({pin: pin, role: data.role, name: data.name})
                             });
                             location.reload();
                         } else {
-                            document.getElementById('auth-msg').innerText = "Błędny PIN!";
-                            document.getElementById('auth-msg').style.display = 'block';
+                            msgEl.innerText = "Błędny PIN!";
+                            msgEl.style.display = 'block';
                         }
                     } catch(e) {
-                        document.getElementById('auth-msg').innerText = "Brak dostępu do serwera cloud. Sprawdź adres konfiguracji.";
-                        document.getElementById('auth-msg').style.display = 'block';
+                        msgEl.innerText = "Brak dostępu do serwera cloud. Sprawdź adres konfiguracji.";
+                        msgEl.style.display = 'block';
                     }
                 }
             </script>
@@ -358,6 +354,12 @@ IFRAME_HTML = """
 
 # --- ROUTES ---
 
+@app.before_request
+def _ensure_ws_thread():
+    global _ws_thread
+    if _ws_thread is None or not _ws_thread.is_alive():
+        _ws_thread = start_ws_thread()
+
 @app.route("/")
 def index():
     has_internet = check_internet()
@@ -409,6 +411,17 @@ def login_pin():
     add_log(f"Zalogowano {data.get('name')} jako {data.get('role')}")
     return jsonify({"ok": True})
 
+@app.route("/login_local", methods=["POST"])
+def login_local():
+    data = request.json
+    if data.get("pin") == "019283":
+        session['staff_pin'] = data['pin']
+        session['staff_role'] = 'master'
+        session['staff_name'] = 'Master'
+        add_log("Zalogowano Master (lokalnie)")
+        return jsonify({"ok": True})
+    return jsonify({"ok": False})
+
 @app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
@@ -444,23 +457,23 @@ def wydawka():
 # --- BACKGROUND WEBSOCKET CLIENT ---
 async def ws_client_loop():
     while True:
-        dk = get_device_key()
-        conf = get_config()
-        base_url = conf.get("cloud_url", "https://elvis-burger-v1-292715946390.europe-west1.run.app")
-        
-        if not dk or not base_url or "127.0.0.1" in base_url:
-            add_log(f"⚠️ Skonfiguruj Cloud URL i Klucz ({dk or 'Brak klucza'})")
-            await asyncio.sleep(10)
-            continue
-            
-        ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?device_key={dk}"
-        if not check_internet():
-            await asyncio.sleep(5)
-            continue
-            
         try:
+            dk = get_device_key()
+            conf = get_config()
+            base_url = conf.get("cloud_url", "https://elvis-burger-v1-292715946390.europe-west1.run.app")
+
+            if not dk or not base_url or "127.0.0.1" in base_url:
+                add_log(f"⚠️ Skonfiguruj Cloud URL i Klucz ({dk or 'Brak klucza'})")
+                await asyncio.sleep(10)
+                continue
+
+            if not check_internet():
+                await asyncio.sleep(5)
+                continue
+
+            ws_url = base_url.replace("http://", "ws://").replace("https://", "wss://") + f"/ws?device_key={dk}"
             async with websockets.connect(ws_url, ping_interval=20, ping_timeout=10) as ws:
-                add_log(f"Połączono z Chmurą ({dk})")
+                add_log(f"✅ Połączono z Chmurą ({dk})")
                 await ws.send(json.dumps({"type": "device_status", "status": "online", "ip": get_local_ip()}))
                 while True:
                     msg = await ws.recv()
@@ -470,14 +483,22 @@ async def ws_client_loop():
                         total = sum(float(i.get("price", 0)) for i in items)
                         add_log(f"🧾 Paragon Stolik {data.get('table_number')} | {len(items)} poz. | {total:.2f} zł")
         except Exception as e:
-            add_log(f"Błąd WS ({base_url}): {e}. Ponawiam za 5s...")
+            add_log(f"Błąd WS: {e}. Ponawiam za 5s...")
             await asyncio.sleep(5)
 
 def run_ws_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(ws_client_loop())
+    asyncio.run(ws_client_loop())
+
+def start_ws_thread():
+    t = threading.Thread(target=run_ws_loop, daemon=True)
+    t.start()
+    return t
+
+_ws_thread = None
+# Start thread in gunicorn workers and Flask dev child process
+if not os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    _ws_thread = start_ws_thread()
 
 if __name__ == "__main__":
-    # W trybie bezpośrednim (python rpi_app.py) Flask sam obsłuży wątki
+    _ws_thread = start_ws_thread()
     app.run(host="0.0.0.0", port=8080)
