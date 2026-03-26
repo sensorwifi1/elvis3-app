@@ -68,7 +68,7 @@
             <div id="global-pos-id" style="color:#666;">Elvis_KWI_0326</div>
         </div>
         <button class="nav-btn active" onclick="showTab('tab-dash')">📊 DASHBOARD</button>
-        <button class="nav-btn" onclick="showTab('tab-pos')">🖨️ POS RPi</button>
+        <button class="nav-btn" onclick="showTab('tab-pos')">🖨️ POS</button>
         <button class="nav-btn" onclick="showTab('tab-stats')">📈 STATYSTYKI</button>
         <button class="nav-btn" onclick="showTab('tab-floor')">🗺️ MAPA SALI</button>
         <button class="nav-btn" onclick="showTab('tab-menu')">🍔 PRODUKTY</button>
@@ -94,15 +94,36 @@
         </div>
 
         <div id="tab-pos" class="tab">
-            <h2 style="color:var(--gold);">POS RPi — Kolejka Druku</h2>
-            <div id="pos-status-box" class="form-container" style="display:flex; align-items:center; gap:20px; font-size:1.2em;">
-                <div id="pos-dot" style="width:15px; height:15px; border-radius:50%; background:#d32f2f;"></div>
-                <div>Status: <b id="pos-status-text">OFFLINE</b></div>
-                <div id="pos-ip-info" style="color:#888; font-size:0.8em;">(Brak danych o IP)</div>
+            <h2 style="color:var(--gold);">POS RPi — Status i Kolejka</h2>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                <!-- STATUS I KONFIGURACJA -->
+                <div class="form-container">
+                    <h3 style="color:var(--gold); margin-top:0;">STATUS POŁĄCZENIA</h3>
+                    <div id="pos-status-box" style="display:flex; align-items:center; gap:20px; font-size:1.1em; background:#000; padding:15px; border-radius:10px; border:1px solid #333;">
+                        <div id="pos-dot" style="width:15px; height:15px; border-radius:50%; background:#d32f2f;"></div>
+                        <div>Status: <b id="pos-status-text">OFFLINE</b></div>
+                        <div id="pos-ip-info" style="color:#888; font-size:0.8em;">(Brak danych o IP)</div>
+                    </div>
+                    <p style="font-size:0.8em; color:#555; margin-top:10px;">ID Urządzenia: <b id="pos-device-id">Elvis_KWI_0326</b></p>
+                </div>
+
+                <!-- OSTATNI PARAGON -->
+                <div class="form-container">
+                    <h3 style="color:var(--gold); margin-top:0;">OSTATNI RACHUNEK (ELZAB JSON)</h3>
+                    <div id="last-receipt-box" style="background:#000; padding:15px; border-radius:10px; border:1px solid #333; font-family:monospace; font-size:0.8em; height:100px; overflow-y:auto; color:var(--gold);">
+                        Oczekiwanie na wydruk...
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button onclick="fetchLastReceipt()" style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">ODŚWIEŻ</button>
+                        <button onclick="resendLastReceipt()" style="background:var(--gold); color:#000; font-weight:bold; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">PONÓW WYDRUK</button>
+                    </div>
+                </div>
             </div>
+
             <div class="form-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h3 style="margin:0; color:var(--gold);">KOLEJKA DRUKU</h3>
+                    <h3 style="margin:0; color:var(--gold);">HISTORIA DRUKU</h3>
                     <button onclick="clearPrintLog()" style="background:#333; color:#888; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85em;">WYCZYŚĆ LOG</button>
                 </div>
                 <table class="pos-table" style="width:100%">
@@ -496,6 +517,7 @@
                 } else {
                     dot.style.background = '#d32f2f';
                     text.innerText = 'OFFLINE'; text.style.color = '#d32f2f';
+                    ip.innerText = '(Brak danych o IP)';
                 }
             } catch(e) {}
 
@@ -510,6 +532,49 @@
             }
 
             renderPrintLog();
+            fetchLastReceipt();
+        }
+
+        async function fetchLastReceipt() {
+            try {
+                const res = await fetch('/api/admin/last_receipt');
+                const data = await res.json();
+                if(data.error) return;
+                
+                // Formatuje dla Elzab Zeta (uproszczony JSON)
+                const elzab = {
+                    "cmd": "print_receipt",
+                    "table_number": data.table_number,
+                    "items": data.items.map(i => ({ 
+                        "burger_name": i.burger_name, 
+                        "price": i.price, 
+                        "n": i.burger_name, 
+                        "p": i.price, 
+                        "q": 1 
+                    })),
+                    "total": data.total,
+                    "date": data.timestamp
+                };
+                
+                const box = document.getElementById('last-receipt-box');
+                if(box) box.innerText = JSON.stringify(elzab, null, 2);
+                return elzab;
+            } catch(e) {}
+        }
+
+        async function resendLastReceipt() {
+            const data = await fetchLastReceipt();
+            if(!data) return showToast("Brak rachunku do ponowienia.");
+            
+            try {
+                const res = await fetch('/api/admin/resend_receipt', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if(res.ok) showToast("🧾 Zadanie druku wysłane ponownie!");
+                else showToast("❌ Błąd wysyłania.");
+            } catch(e) { showToast("Błąd połączenia."); }
         }
 
         function renderPrintLog() {
@@ -612,6 +677,8 @@
             fetchData();
             loadStaff(); 
             connectWebSocket();
+            // Polling dla statusu POS (na wszelki wypadek)
+            setInterval(renderPOSList, 10000);
         }
 
         function connectWebSocket() {

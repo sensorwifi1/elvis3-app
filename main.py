@@ -389,11 +389,32 @@ async def mark_paid(table_num: int):
     db.collection("active_tables").document(table_str).update({"pay_request": False})
     await manager.broadcast(json.dumps({"type": "update"}))
     if orders_to_print:
+        total = sum(float(i.get("price", 0)) for i in orders_to_print)
+        receipt_data = {
+            "table_number": table_str,
+            "items": orders_to_print,
+            "total": total,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "device_key": "Elvis_KWI_0326" # Domyślny klucz dla uproszczenia
+        }
+        db.collection("config").document("last_receipt").set(receipt_data)
+        
         await manager.broadcast(json.dumps({
             "type": "receipt",
-            "table_number": table_str,
-            "items": orders_to_print
+            **receipt_data
         }))
+    return {"ok": True}
+
+@app.get("/api/admin/last_receipt")
+async def get_last_receipt():
+    doc = db.collection("config").document("last_receipt").get()
+    return doc.to_dict() if doc.exists else {"error": "Brak danych"}
+
+@app.post("/api/admin/resend_receipt")
+async def resend_receipt(payload: dict):
+    # Dopisujemy typ receipt by RPi wiedziało co z tym zrobić
+    payload["type"] = "receipt"
+    await manager.broadcast(json.dumps(payload))
     return {"ok": True}
 
 # --- WYDAWKA API ---
