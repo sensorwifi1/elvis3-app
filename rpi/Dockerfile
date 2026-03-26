@@ -12,5 +12,5 @@ VOLUME ["/data"]
 
 EXPOSE 8080
 
-# 1 worker — synchronous gunicorn, thread-safe for background WS loop
-CMD ["gunicorn", "-w", "1", "--timeout", "120", "-b", "0.0.0.0:8080", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+# gthread worker: wiele wątków na worker, jeden zawieszony recv() nie blokuje całego procesu
+CMD ["gunicorn", "-w", "1", "--worker-class", "gthread", "--threads", "4", "--timeout", "60", "--keep-alive", "2", "-b", "0.0.0.0:8080", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
