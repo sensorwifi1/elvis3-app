@@ -1,49 +1,236 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
     <meta charset="UTF-8">
-    <title>POS Master Admin - zjedz.it</title>
+    <title>POS Master Boss....- zjedz.it</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --gold: #d4af37; --bg: #000; --panel: #111; --green: #388e3c; --orange: #f4511e; }
-        body { background: var(--bg); color: #fff; font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden;}
-        
-        nav { width: 220px; background: #0a0a0a; height: 100vh; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        .nav-btn { display: block; width: 100%; padding: 12px; background: none; border: none; color: #888; text-align: left; cursor: pointer; font-size: 1.1em; border-radius: 8px; margin-bottom: 5px;}
-        .nav-btn.active { color: #000; font-weight: bold; background: var(--gold); }
+        :root {
+            --gold: #d4af37;
+            --bg: #000;
+            --panel: #111;
+            --green: #388e3c;
+            --orange: #f4511e;
+        }
 
-        main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .tab { display: none; flex: 1; overflow-y: auto; padding: 25px; }
-        .tab.active { display: flex; flex-direction: column; }
+        body {
+            background: var(--bg);
+            color: #fff;
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid #222; text-align: center; }
-        .stat-card h2 { color: var(--gold); font-size: 1.8em; margin: 5px 0; }
-        .stat-card h3 { font-size: 0.85em; color: #888; text-transform: uppercase; margin: 0; }
+        nav {
+            width: 220px;
+            background: #0a0a0a;
+            height: 100vh;
+            padding: 20px;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
 
-        .floor-plan { background: #1a1a1a; position: relative; border: 2px dashed #444; border-radius: 15px; min-height: 500px; flex: 1;}
-        .table-rect { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 8px; font-weight: bold; cursor: move; color: #fff; border: 2px solid rgba(0,0,0,0.5); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .t-free { background: var(--green); } .t-open { background: #fbc02d; color: #000; }
+        .nav-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: none;
+            border: none;
+            color: #888;
+            text-align: left;
+            cursor: pointer;
+            font-size: 1.1em;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
 
-        .form-container { background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid #222; margin-bottom: 20px; }
-        .input-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
-        input, select, textarea { background: #222; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; width: 100%; box-sizing: border-box; font-family: sans-serif;}
-        textarea { min-height: 80px; resize: vertical; }
-        
-        button.btn-save { background: var(--gold); color: #000; font-weight: bold; padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s; }
-        button.btn-save:hover { opacity: 0.8; }
-        .prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .nav-btn.active {
+            color: #000;
+            font-weight: bold;
+            background: var(--gold);
+        }
 
-        .pos-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .pos-table th, .pos-table td { padding: 12px; text-align: left; border-bottom: 1px solid #222; }
-        .pos-table th { color: var(--gold); font-size: 0.9em; }
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        .tab.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            text-align: center;
+        }
+
+        .stat-card h2 {
+            color: var(--gold);
+            font-size: 1.8em;
+            margin: 5px 0;
+        }
+
+        .stat-card h3 {
+            font-size: 0.85em;
+            color: #888;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .floor-plan {
+            background: #1a1a1a;
+            position: relative;
+            border: 2px dashed #444;
+            border-radius: 15px;
+            min-height: 500px;
+            flex: 1;
+        }
+
+        .table-rect {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: move;
+            color: #fff;
+            border: 2px solid rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .t-free {
+            background: var(--green);
+        }
+
+        .t-open {
+            background: #fbc02d;
+            color: #000;
+        }
+
+        .form-container {
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            margin-bottom: 20px;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        input,
+        select,
+        textarea {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: sans-serif;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button.btn-save {
+            background: var(--gold);
+            color: #000;
+            font-weight: bold;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.btn-save:hover {
+            opacity: 0.8;
+        }
+
+        .prod-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .pos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .pos-table th,
+        .pos-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #222;
+        }
+
+        .pos-table th {
+            color: var(--gold);
+            font-size: 0.9em;
+        }
 
         #toast {
-            visibility: hidden; min-width: 250px; background-color: #222; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 9999; left: 50%; bottom: 30px; transform: translateX(-50%); border: 1px solid var(--gold); font-weight: bold; opacity: 0; transition: 0.3s;
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #222;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            border: 1px solid var(--gold);
+            font-weight: bold;
+            opacity: 0;
+            transition: 0.3s;
         }
-        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
     </style>
 </head>
+
 <body>
 
 
@@ -52,7 +239,8 @@
 
     <nav>
         <h2 style="color:var(--gold); text-align:center; margin-bottom:10px; font-size: 1.2em;">POS ADMIN</h2>
-        <div id="nav-pos-status" style="background:#111; padding:10px; border-radius:10px; margin-bottom:20px; text-align:center; font-size:0.7em; border:1px solid #333;">
+        <div id="nav-pos-status"
+            style="background:#111; padding:10px; border-radius:10px; margin-bottom:20px; text-align:center; font-size:0.7em; border:1px solid #333;">
             <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;">
                 <div id="global-pos-dot" style="width:10px; height:10px; border-radius:50%; background:#d32f2f;"></div>
                 <b id="global-pos-text">POS OFFLINE</b>
@@ -71,10 +259,22 @@
     <main>
         <div id="tab-dash" class="tab active">
             <div class="stat-grid">
-                <div class="stat-card"><h3>Utarg Dzisiaj</h3><h2 id="st-rev">0.00 zł</h2></div>
-                <div class="stat-card"><h3>Zamówienia</h3><h2 id="st-qty">0</h2></div>
-                <div class="stat-card"><h3>W Kuchni</h3><h2 id="st-kitchen" style="color:var(--orange)">0</h2></div>
-                <div class="stat-card"><h3>Gotowe</h3><h2 id="st-ready" style="color:var(--green)">0</h2></div>
+                <div class="stat-card">
+                    <h3>Utarg Dzisiaj</h3>
+                    <h2 id="st-rev">0.00 zł</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Zamówienia</h3>
+                    <h2 id="st-qty">0</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>W Kuchni</h3>
+                    <h2 id="st-kitchen" style="color:var(--orange)">0</h2>
+                </div>
+                <div class="stat-card">
+                    <h3>Gotowe</h3>
+                    <h2 id="st-ready" style="color:var(--green)">0</h2>
+                </div>
             </div>
             <div style="display:flex; gap:20px; flex:1; min-height:0;">
                 <div id="floor-dash" class="floor-plan"></div>
@@ -87,28 +287,34 @@
 
         <div id="tab-pos" class="tab">
             <h2 style="color:var(--gold);">POS RPi — Status i Kolejka</h2>
-            
+
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                 <!-- STATUS I KONFIGURACJA -->
                 <div class="form-container">
                     <h3 style="color:var(--gold); margin-top:0;">STATUS POŁĄCZENIA</h3>
-                    <div id="pos-status-box" style="display:flex; align-items:center; gap:20px; font-size:1.1em; background:#000; padding:15px; border-radius:10px; border:1px solid #333;">
+                    <div id="pos-status-box"
+                        style="display:flex; align-items:center; gap:20px; font-size:1.1em; background:#000; padding:15px; border-radius:10px; border:1px solid #333;">
                         <div id="pos-dot" style="width:15px; height:15px; border-radius:50%; background:#d32f2f;"></div>
                         <div>Status: <b id="pos-status-text">OFFLINE</b></div>
                         <div id="pos-ip-info" style="color:#888; font-size:0.8em;">(Brak danych o IP)</div>
                     </div>
-                    <p style="font-size:0.8em; color:#555; margin-top:10px;">ID Urządzenia: <b id="pos-device-id">Elvis_KWI_0326</b></p>
+                    <p style="font-size:0.8em; color:#555; margin-top:10px;">ID Urządzenia: <b
+                            id="pos-device-id">Elvis_KWI_0326</b></p>
                 </div>
 
                 <!-- OSTATNI PARAGON -->
                 <div class="form-container">
                     <h3 style="color:var(--gold); margin-top:0;">OSTATNI RACHUNEK (ELZAB JSON)</h3>
-                    <div id="last-receipt-box" style="background:#000; padding:15px; border-radius:10px; border:1px solid #333; font-family:monospace; font-size:0.8em; height:100px; overflow-y:auto; color:var(--gold);">
+                    <div id="last-receipt-box"
+                        style="background:#000; padding:15px; border-radius:10px; border:1px solid #333; font-family:monospace; font-size:0.8em; height:100px; overflow-y:auto; color:var(--gold);">
                         Oczekiwanie na wydruk...
                     </div>
                     <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button onclick="fetchLastReceipt()" style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">ODŚWIEŻ</button>
-                        <button onclick="resendLastReceipt()" style="background:var(--gold); color:#000; font-weight:bold; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">PONÓW WYDRUK</button>
+                        <button onclick="fetchLastReceipt()"
+                            style="background:#444; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">ODŚWIEŻ</button>
+                        <button onclick="resendLastReceipt()"
+                            style="background:var(--gold); color:#000; font-weight:bold; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:0.75em;">PONÓW
+                            WYDRUK</button>
                     </div>
                 </div>
             </div>
@@ -116,10 +322,20 @@
             <div class="form-container">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="margin:0; color:var(--gold);">HISTORIA DRUKU</h3>
-                    <button onclick="clearPrintLog()" style="background:#333; color:#888; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85em;">WYCZYŚĆ LOG</button>
+                    <button onclick="clearPrintLog()"
+                        style="background:#333; color:#888; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:0.85em;">WYCZYŚĆ
+                        LOG</button>
                 </div>
                 <table class="pos-table" style="width:100%">
-                    <thead><tr><th>CZAS</th><th>STOLIK</th><th>POZYCJE</th><th>KWOTA</th><th>STATUS</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>CZAS</th>
+                            <th>STOLIK</th>
+                            <th>POZYCJE</th>
+                            <th>KWOTA</th>
+                            <th>STATUS</th>
+                        </tr>
+                    </thead>
                     <tbody id="pos-print-log"></tbody>
                 </table>
             </div>
@@ -145,7 +361,9 @@
                 <div style="display:flex; gap:15px; align-items:center;">
                     Szerokość: <input type="number" id="f-w" style="width:80px;">
                     Wysokość: <input type="number" id="f-h" style="width:80px;">
-                    <button onclick="addTable()" style="background:#444; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer;">+ DODAJ STOLIK</button>
+                    <button onclick="addTable()"
+                        style="background:#444; color:#fff; border:none; padding:10px; border-radius:6px; cursor:pointer;">+
+                        DODAJ STOLIK</button>
                     <button class="btn-save" onclick="saveLayout()">💾 ZAPISZ MAPĘ</button>
                 </div>
             </div>
@@ -181,7 +399,8 @@
 
         <div id="tab-staff" class="tab">
             <h2 style="color:var(--gold);">Zarządzanie Pracownikami</h2>
-            <p style="color:#888; margin-bottom:20px;">Nadaj PIN (min. 6 znaków) dla każdego pracownika i przypisz mu rolę.</p>
+            <p style="color:#888; margin-bottom:20px;">Nadaj PIN (min. 6 znaków) dla każdego pracownika i przypisz mu
+                rolę.</p>
             <div class="form-container">
                 <div class="input-row" style="grid-template-columns: 2fr 1fr 1fr;">
                     <input type="text" id="s-name" placeholder="Imię Pracownika">
@@ -197,14 +416,22 @@
             </div>
             <div class="form-container">
                 <table class="pos-table">
-                    <thead><tr><th>IMIĘ</th><th>PIN (UKRYTY)</th><th>ROLA</th><th>OPCJE</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>IMIĘ</th>
+                            <th>PIN (UKRYTY)</th>
+                            <th>ROLA</th>
+                            <th>OPCJE</th>
+                        </tr>
+                    </thead>
                     <tbody id="staff-list"></tbody>
                 </table>
             </div>
         </div>
         <div id="tab-access" class="tab">
             <h2 style="color:var(--gold);">Uprawnienia Dostępu (Google)</h2>
-            <p style="color:#888; margin-bottom:20px;">Nadaj dostęp do systemu dla kont Google. Admin nie może nadać roli Admina.</p>
+            <p style="color:#888; margin-bottom:20px;">Nadaj dostęp do systemu dla kont Google. Admin nie może nadać
+                roli Admina.</p>
             <div class="form-container">
                 <div class="input-row" style="grid-template-columns: 2fr 1fr;">
                     <input type="email" id="a-email" placeholder="Adres email Google">
@@ -219,7 +446,13 @@
             <div class="form-container">
                 <h3 style="margin-top:0; color:var(--gold);">Aktualne Dostępy</h3>
                 <table class="pos-table">
-                    <thead><tr><th>EMAIL</th><th>ROLA</th><th>OPCJE</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>EMAIL</th>
+                            <th>ROLA</th>
+                            <th>OPCJE</th>
+                        </tr>
+                    </thead>
                     <tbody id="access-list"></tbody>
                 </table>
             </div>
@@ -245,12 +478,12 @@
             document.getElementById(id).classList.add('active');
             event.currentTarget.classList.add('active');
             isEditingMap = (id === 'tab-floor');
-            if(id === 'tab-menu') loadMenu();
-            if(id === 'tab-floor') drawFloorEdit();
-            if(id === 'tab-stats') loadDetailedStats();
-            if(id === 'tab-pos') renderPOSList();
-            if(id === 'tab-staff') loadStaff();
-            if(id === 'tab-access') loadAccess();
+            if (id === 'tab-menu') loadMenu();
+            if (id === 'tab-floor') drawFloorEdit();
+            if (id === 'tab-stats') loadDetailedStats();
+            if (id === 'tab-pos') renderPOSList();
+            if (id === 'tab-staff') loadStaff();
+            if (id === 'tab-access') loadAccess();
         }
 
         // NAPRAWIONE: Funkcja pobierająca nie tyka mapy, jeśli jest w trakcie edycji!
@@ -259,22 +492,22 @@
                 const [lRes, aRes, oRes] = await Promise.all([
                     fetch('/api/get_layout'), fetch('/api/active_tables'), fetch('/api/all_orders')
                 ]);
-                
+
                 if (lRes.ok && !isEditingMap) {
                     const newLayout = await lRes.json();
                     layout = newLayout;
-                    if(!layout.tables) layout.tables = [];
+                    if (!layout.tables) layout.tables = [];
                     document.getElementById('f-w').value = layout.width || 10;
                     document.getElementById('f-h').value = layout.height || 8;
                     drawFloorDash();
                 }
-                
-                if(aRes.ok) activeTables = (await aRes.json()).tables || [];
-                if(oRes.ok) allOrders = (await oRes.json()).orders || [];
-                
+
+                if (aRes.ok) activeTables = (await aRes.json()).tables || [];
+                if (oRes.ok) allOrders = (await oRes.json()).orders || [];
+
                 updateDashboardStats();
                 renderPOSList();
-            } catch(e) { console.error("Sync error", e); }
+            } catch (e) { console.error("Sync error", e); }
         }
 
         function drawFloorDash() {
@@ -285,8 +518,8 @@
                 const act = activeTables.find(a => String(a.table_number) === String(t.n));
                 const div = document.createElement('div');
                 div.className = `table-rect ${act ? 't-open' : 't-free'}`;
-                div.style.width = (SCALE-5)+'px'; div.style.height = (SCALE-5)+'px';
-                div.style.left = (t.x * SCALE)+'px'; div.style.top = (t.y * SCALE)+'px';
+                div.style.width = (SCALE - 5) + 'px'; div.style.height = (SCALE - 5) + 'px';
+                div.style.left = (t.x * SCALE) + 'px'; div.style.top = (t.y * SCALE) + 'px';
                 div.innerText = t.n;
                 f.appendChild(div);
             });
@@ -301,14 +534,14 @@
             (layout.tables || []).forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'table-rect t-free';
-                div.style.width = (SCALE-5)+'px'; div.style.height = (SCALE-5)+'px';
-                div.style.left = (t.x * SCALE)+'px'; div.style.top = (t.y * SCALE)+'px';
+                div.style.width = (SCALE - 5) + 'px'; div.style.height = (SCALE - 5) + 'px';
+                div.style.left = (t.x * SCALE) + 'px'; div.style.top = (t.y * SCALE) + 'px';
                 div.innerHTML = `${t.n} <span style="position:absolute; top:-8px; right:-8px; background:red; color:white; border-radius:50%; width:20px; height:20px; font-size:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;" onclick="layout.tables.splice(${i}, 1); drawFloorEdit(); event.stopPropagation();">X</span>`;
                 div.onmousedown = (e) => {
                     let move = (ev) => {
                         let rect = f.getBoundingClientRect();
-                        t.x = Math.max(0, (ev.clientX - rect.left - SCALE/2) / SCALE);
-                        t.y = Math.max(0, (ev.clientY - rect.top - SCALE/2) / SCALE);
+                        t.x = Math.max(0, (ev.clientX - rect.left - SCALE / 2) / SCALE);
+                        t.y = Math.max(0, (ev.clientY - rect.top - SCALE / 2) / SCALE);
                         drawFloorEdit();
                     };
                     window.onmousemove = move;
@@ -318,10 +551,10 @@
             });
         }
 
-        function addTable() { 
-            if(!layout.tables) layout.tables = [];
-            layout.tables.push({n: layout.tables.length + 1, x: 0, y: 0}); 
-            drawFloorEdit(); 
+        function addTable() {
+            if (!layout.tables) layout.tables = [];
+            layout.tables.push({ n: layout.tables.length + 1, x: 0, y: 0 });
+            drawFloorEdit();
         }
 
         // NAPRAWIONE: Zapis mapy czeka na potwierdzenie od serwera
@@ -331,24 +564,24 @@
             // Pobieramy poprawne wymiary, jeśli puste to dajemy 10
             const w = parseInt(document.getElementById('f-w').value) || 10;
             const h = parseInt(document.getElementById('f-h').value) || 10;
-            
+
             const data = {
                 width: w,
                 height: h,
                 tables: layout.tables
             };
-            
+
             try {
                 const response = await fetch('/api/admin/save_layout', {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
                 if (response.ok) {
                     // SUKCES: Serwer przyjął mapę
                     showToast("🗺️ Mapa sali ZAPISANA w chmurze!");
-                    isEditingMap = false; 
+                    isEditingMap = false;
                     fetchData(); // Odświeżamy dane
                 } else {
                     // BŁĄD SERWERA (np. 422 lub 500)
@@ -365,7 +598,7 @@
             const today = new Date().toISOString().split('T')[0];
             const tOrders = allOrders.filter(o => o.timestamp && o.timestamp.includes(today));
             const rev = tOrders.reduce((s, o) => s + (parseFloat(o.price) || 0), 0);
-            
+
             document.getElementById('st-rev').innerText = rev.toFixed(2) + " zł";
             document.getElementById('st-qty').innerText = tOrders.length;
             document.getElementById('st-kitchen').innerText = tOrders.filter(o => o.status === 'nowe' || o.status === 'preparing').length;
@@ -373,16 +606,16 @@
 
             const counts = {};
             tOrders.forEach(o => counts[o.burger_name] = (counts[o.burger_name] || 0) + 1);
-            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
-            if(dashChart) dashChart.destroy();
+            if (dashChart) dashChart.destroy();
             dashChart = new Chart(document.getElementById('dashChart'), {
                 type: 'doughnut',
                 data: {
                     labels: sorted.map(x => x[0]),
-                    datasets: [{ data: sorted.map(x => x[1]), backgroundColor: ['#d4af37','#fff','#444','#888','#222'], borderWidth: 0 }]
+                    datasets: [{ data: sorted.map(x => x[1]), backgroundColor: ['#d4af37', '#fff', '#444', '#888', '#222'], borderWidth: 0 }]
                 },
-                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: {color:'#fff', font:{size:10}} } } }
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 10 } } } } }
             });
         }
 
@@ -397,24 +630,24 @@
             fd.append("kcal", document.getElementById('m-kcal').value);
             fd.append("weight", document.getElementById('m-weight').value);
             fd.append("to_kitchen", document.getElementById('m-kitchen').value === "true");
-            
+
             const file = document.getElementById('m-file').files[0];
-            if(file) fd.append("file", file);
-            
+            if (file) fd.append("file", file);
+
             try {
-                const res = await fetch('/api/admin/save_product', { method:'POST', body:fd });
+                const res = await fetch('/api/admin/save_product', { method: 'POST', body: fd });
                 const data = await res.json();
-                if(data.ok) {
+                if (data.ok) {
                     showToast("🍔 Produkt zapisany! Odświeżam listę...");
                     loadMenu();
                 } else alert("Błąd zapisu: " + (data.error || "Nieznany błąd"));
-            } catch(e) { alert("Błąd połączenia: " + e.message); }
+            } catch (e) { alert("Błąd połączenia: " + e.message); }
         }
 
         async function loadMenu() {
             const r = await fetch('/api/get_menu');
             menuData = await r.json();
-            document.getElementById('prod-grid').innerHTML = Object.entries(menuData).map(([k,v]) => `
+            document.getElementById('prod-grid').innerHTML = Object.entries(menuData).map(([k, v]) => `
                 <div class="stat-card" style="padding:10px;">
                     <img src="/static/images/${v.image}" style="width:100%; height:80px; object-fit:cover; border-radius:6px;" onerror="this.src='https://via.placeholder.com/150'">
                     <h4 style="margin:8px 0 4px">${v.name}</h4>
@@ -440,11 +673,11 @@
         async function loadDetailedStats() {
             const f = document.getElementById('stats-from').value;
             const t = document.getElementById('stats-to').value;
-            if(!f || !t) return;
+            if (!f || !t) return;
             const res = await fetch(`/api/admin/stats?start_date=${f}&end_date=${t}`);
             const data = await res.json();
             document.getElementById('stats-total-rev').innerText = data.revenue.toFixed(2) + " zł";
-            if(statsChart) statsChart.destroy();
+            if (statsChart) statsChart.destroy();
             statsChart = new Chart(document.getElementById('statsChart'), {
                 type: 'bar',
                 data: {
@@ -459,16 +692,16 @@
             const name = document.getElementById('s-name').value;
             const pin = document.getElementById('s-pin').value;
             const role = document.getElementById('s-role').value;
-            if(!name || !pin) return alert("Wypełnij imię i PIN!");
+            if (!name || !pin) return alert("Wypełnij imię i PIN!");
             try {
                 const res = await fetch('/api/admin/save_staff', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, pin, role })
                 });
                 const data = await res.json();
-                if(data.ok) { showToast("Użytkownik dodany!"); loadStaff(); } 
+                if (data.ok) { showToast("Użytkownik dodany!"); loadStaff(); }
                 else alert("Błąd serwera: " + (data.error || "Nieznany błąd"));
-            } catch(e) { alert("Błąd połączenia: " + e.message); }
+            } catch (e) { alert("Błąd połączenia: " + e.message); }
         }
 
         async function loadStaff() {
@@ -485,16 +718,16 @@
         }
 
         async function deleteStaff(pin) {
-            if(confirm("Czy na pewno usunąć tego pracownika?")) {
+            if (confirm("Czy na pewno usunąć tego pracownika?")) {
                 try {
                     const res = await fetch('/api/admin/delete_staff', {
-                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ pin })
                     });
                     const data = await res.json();
-                    if(data.ok) { showToast("Pracownik usunięty!"); loadStaff(); } 
+                    if (data.ok) { showToast("Pracownik usunięty!"); loadStaff(); }
                     else alert("Błąd serwera: " + (data.error || "Nieznany błąd"));
-                } catch(e) { alert("Błąd połączenia: " + e.message); }
+                } catch (e) { alert("Błąd połączenia: " + e.message); }
             }
         }
 
@@ -514,13 +747,13 @@
                     text.innerText = 'OFFLINE'; text.style.color = '#d32f2f';
                     ip.innerText = '(Brak danych o IP)';
                 }
-            } catch(e) {}
+            } catch (e) { }
 
             // Sync global indicator
             const dot = document.getElementById('pos-dot');
             const globalDot = document.getElementById('global-pos-dot');
             const globalText = document.getElementById('global-pos-text');
-            if(dot && globalDot) {
+            if (dot && globalDot) {
                 globalDot.style.background = dot.style.background;
                 globalText.innerText = `POS ${document.getElementById('pos-status-text').innerText}`;
                 globalText.style.color = dot.style.background;
@@ -534,48 +767,48 @@
             try {
                 const res = await fetch('/api/admin/last_receipt');
                 const data = await res.json();
-                if(data.error) return;
-                
+                if (data.error) return;
+
                 // Formatuje dla Elzab Zeta (uproszczony JSON)
                 const elzab = {
                     "cmd": "print_receipt",
                     "table_number": data.table_number,
-                    "items": data.items.map(i => ({ 
-                        "burger_name": i.burger_name, 
-                        "price": i.price, 
-                        "n": i.burger_name, 
-                        "p": i.price, 
-                        "q": 1 
+                    "items": data.items.map(i => ({
+                        "burger_name": i.burger_name,
+                        "price": i.price,
+                        "n": i.burger_name,
+                        "p": i.price,
+                        "q": 1
                     })),
                     "total": data.total,
                     "date": data.timestamp
                 };
-                
+
                 const box = document.getElementById('last-receipt-box');
-                if(box) box.innerText = JSON.stringify(elzab, null, 2);
+                if (box) box.innerText = JSON.stringify(elzab, null, 2);
                 return elzab;
-            } catch(e) {}
+            } catch (e) { }
         }
 
         async function resendLastReceipt() {
             const data = await fetchLastReceipt();
-            if(!data) return showToast("Brak rachunku do ponowienia.");
-            
+            if (!data) return showToast("Brak rachunku do ponowienia.");
+
             try {
                 const res = await fetch('/api/admin/resend_receipt', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                if(res.ok) showToast("🧾 Zadanie druku wysłane ponownie!");
+                if (res.ok) showToast("🧾 Zadanie druku wysłane ponownie!");
                 else showToast("❌ Błąd wysyłania.");
-            } catch(e) { showToast("Błąd połączenia."); }
+            } catch (e) { showToast("Błąd połączenia."); }
         }
 
         function renderPrintLog() {
             const tbody = document.getElementById('pos-print-log');
-            if(!tbody) return;
-            if(printLog.length === 0) {
+            if (!tbody) return;
+            if (printLog.length === 0) {
                 tbody.innerHTML = "<tr><td colspan='5' style='text-align:center; color:#666;'>Brak zadań druku. Paragony pojawią się tu po zamknięciu rachunku.</td></tr>";
                 return;
             }
@@ -606,35 +839,35 @@
                         <td><button onclick="revokeAccess('${u.email}')" style="background:#444; color:#fff; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">USUŃ</button></td>
                     </tr>
                 `).join('') : "<tr><td colspan='3' style='text-align:center; color:#666;'>Brak nadanych dostępów.</td></tr>";
-            } catch(e) { console.error(e); }
+            } catch (e) { console.error(e); }
         }
 
         async function grantAccess() {
             const email = document.getElementById('a-email').value.trim();
             const role = document.getElementById('a-role').value;
-            if(!email) return showToast("Podaj adres email!");
+            if (!email) return showToast("Podaj adres email!");
             try {
                 const res = await fetch('/api/admin/set_role', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ auth_role: myAdminRole, email, role })
                 });
                 const data = await res.json();
-                if(data.ok) { showToast("Dostęp nadany: " + email); document.getElementById('a-email').value = ''; loadAccess(); }
+                if (data.ok) { showToast("Dostęp nadany: " + email); document.getElementById('a-email').value = ''; loadAccess(); }
                 else showToast("Błąd: " + (data.error || "Nieznany"));
-            } catch(e) { showToast("Błąd połączenia"); }
+            } catch (e) { showToast("Błąd połączenia"); }
         }
 
         async function revokeAccess(email) {
-            if(!confirm(`Usunąć dostęp dla ${email}?`)) return;
+            if (!confirm(`Usunąć dostęp dla ${email}?`)) return;
             try {
                 const res = await fetch('/api/admin/set_role', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ auth_role: myAdminRole, email, role: 'user' })
                 });
                 const data = await res.json();
-                if(data.ok) { showToast("Dostęp cofnięty"); loadAccess(); }
+                if (data.ok) { showToast("Dostęp cofnięty"); loadAccess(); }
                 else showToast("Błąd: " + (data.error || "Nieznany"));
-            } catch(e) { showToast("Błąd połączenia"); }
+            } catch (e) { showToast("Błąd połączenia"); }
         }
 
         // Ustaw domyślne daty dla statystyk na dzisiaj/wczoraj
@@ -645,7 +878,7 @@
         function checkAccess() {
             const pin = localStorage.getItem('staff_pin');
             const role = localStorage.getItem('staff_role');
-            if(!pin || !['admin', 'master'].includes(role)) {
+            if (!pin || !['admin', 'master'].includes(role)) {
                 window.location.href = '/portal';
                 return false;
             }
@@ -654,9 +887,9 @@
         }
 
         function startApp() {
-            if(!checkAccess()) return;
+            if (!checkAccess()) return;
             fetchData();
-            loadStaff(); 
+            loadStaff();
             connectWebSocket();
             // Polling dla statusu POS (na wszelki wypadek)
             setInterval(renderPOSList, 10000);
@@ -665,7 +898,7 @@
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-            ws.onmessage = function(event) {
+            ws.onmessage = function (event) {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === 'update') fetchData();
@@ -679,12 +912,13 @@
                         });
                         renderPrintLog();
                     }
-                } catch (e) {}
+                } catch (e) { }
             };
-            ws.onclose = function() { setTimeout(connectWebSocket, 2000); };
+            ws.onclose = function () { setTimeout(connectWebSocket, 2000); };
         }
 
         startApp();
     </script>
 </body>
+
 </html>
