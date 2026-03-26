@@ -149,30 +149,34 @@ INDEX_HTML = """
         {% else %}
         <div class="grid">
             <!-- KONFIGURACJA CHMURY -->
-            <div class="card" style="grid-column: 1 / -1;">
-                <h3>☁️ Konfiguracja Chmury</h3>
-                <form method="POST" action="/set_config" style="display:flex; gap:10px; align-items:center;">
-                    <input type="text" name="cloud_url" value="{{ cloud_url }}" placeholder="https://elvis3-app.a.run.app" style="margin-bottom:0;">
-                    <button class="btn" style="white-space:nowrap;">ZAPISZ URL</button>
+            <div class="card">
+                <h2>Konfiguracja Chmury</h2>
+                <form action="/set_config" method="POST" style="display:flex; flex-direction:column; gap:15px;">
+                    <div>
+                        <label style="font-size:0.8em; color:#888;">URL CHMURY (z https://):</label>
+                        <input type="text" name="cloud_url" value="{{ config.get('cloud_url','') }}" placeholder="https://elvis-app-xyz.a.run.app" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--gold); border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#888;">ID URZĄDZENIA (Klucz POS):</label>
+                        <input type="text" name="device_key" value="{{ device_key }}" placeholder="Elvis_KWI_0326" style="width:100%; padding:12px; background:#000; border:1px solid #333; color:var(--gold); border-radius:8px;">
+                    </div>
+                    <button type="submit" class="btn btn-gold">Zapisz i Połącz Wyżej</button>
+                    <p style="font-size:0.7em; color:#555;">Po zapisaniu nastąpi próba ponownego parowania z chmurą.</p>
                 </form>
-                <p style="color:#555; font-size:0.75em; margin-top:8px;">Malinka szuka teraz chmury pod: <b style="color:var(--gold)">{{ cloud_url }}</b></p>
             </div>
 
-            <!-- KONFIGURACJA URZĄDZENIA -->
+            <!-- STATUS URZĄDZENIA -->
             <div class="card">
-                <h3>🆔 Tożsamość (Device Key)</h3>
-                <form method="POST" action="/set_device_key">
-                    <input type="text" name="device_key" value="{{ device_key }}" placeholder="Elvis_KWI_0326">
-                    <button class="btn" style="width:100%">💾 AKTUALIZUJ KLUCZ</button>
-                </form>
+                <h3>🆔 Status Urządzenia</h3>
                 <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.9em;">Status Parowania:</span>
+                    <span style="font-size:0.9em;">ID: <b style="color:var(--gold)">{{ device_key or 'NIEUSTAWIONO' }}</b></span>
                     {% if device_key %}
                     <span class="status-pill online">SPAROWANO</span>
                     {% else %}
                     <span class="status-pill offline">BRAK</span>
                     {% endif %}
                 </div>
+                <p style="font-size:0.7em; color:#555; margin-top:10px;">Zmień ID w panelu konfiguracji chmury po lewej.</p>
             </div>
 
             <div class="card">
@@ -258,19 +262,18 @@ def logout():
 def set_config():
     if session.get('email') != MASTER_EMAIL: return "Unauthorized", 401
     url = request.form.get("cloud_url", "").strip()
+    dk = request.form.get("device_key", "").strip()
+    
     conf = get_config()
     conf["cloud_url"] = url
     save_config(conf)
-    add_log(f"Zmieniono URL chmury na: {url}. Restart...")
-    threading.Timer(1, lambda: os._exit(1)).start()
-    return redirect(url_for("index"))
-
-@app.route("/set_device_key", methods=["POST"])
-def set_device_key():
-    if session.get('email') != MASTER_EMAIL: return "Unauthorized", 401
-    dk = request.form.get("device_key", "").strip()
-    KEY_FILE.write_text(dk)
-    add_log(f"Zmieniono klucz urządzenia. Restart...")
+    
+    if dk:
+        KEY_FILE.write_text(dk)
+        add_log(f"Zmieniono URL na {url} i klucz na {dk}. Restart...")
+    else:
+        add_log(f"Zmieniono URL na {url}. Restart...")
+        
     threading.Timer(1, lambda: os._exit(1)).start()
     return redirect(url_for("index"))
 

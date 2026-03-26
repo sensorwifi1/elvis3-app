@@ -126,8 +126,8 @@ async def save_staff(request: Request):
     pin = data.get("pin")
     role = data.get("role")
     if not pin or len(pin) < 6: return {"ok": False, "error": "Hasło musi mieć min 6 znaków."}
-    # Zapisujemy pod kluczem PIN, aby łatwo było go wyszukać podczas logowania
-    db.collection("staff").document(pin).set({"name": name, "role": role})
+    print(f"DEBUG: Saving staff: {name}, PIN: {pin}, Role: {role}")
+    db.collection("staff").document(str(pin)).set({"name": name, "role": role})
     return {"ok": True}
 
 @app.get("/api/admin/get_staff")
@@ -166,13 +166,14 @@ async def get_layout():
 @app.post("/api/admin/save_layout")
 async def save_layout(request: Request):
     try:
-        # Zmuszamy serwer do odebrania JSONa z frontendu
         payload = await request.json()
+        print(f"DEBUG: Saving layout: {len(payload.get('tables', []))} tables")
         db.collection("config").document("floor_plan").set(payload)
         await manager.broadcast(json.dumps({"type": "update"}))
         return {"ok": True}
     except Exception as e:
-        return {"error": str(e)}
+        print(f"ERROR: Save layout failed: {str(e)}")
+        return {"ok": False, "error": str(e)}
 
 # --- AUTHENTICATION & ROLES ---
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "YOUR_GOOGLE_CLIENT_ID_HERE")
@@ -191,10 +192,10 @@ async def auth_login(request: Request, response: Response):
             decoded = jwt.decode(token, options={"verify_signature": False})
             email = decoded.get('email')
         except:
-            return {"error": str(e)}
+            return {"ok": False, "error": str(e)}
 
     if not email:
-        return {"error": "Brak email w tokenie"}
+        return {"ok": False, "error": "Brak email w tokenie"}
 
     role = "user"
     if email == MASTER_EMAIL:
@@ -245,20 +246,27 @@ async def verify_pwd(request: Request):
 async def save_product(
     key: str=Form(...), name: str=Form(...), price: float=Form(...), description: str=Form(""),
     allergens: str=Form(""), kcal: str=Form(""), weight: str=Form(""),
-    sort_order: int=Form(10), to_kitchen: bool=Form(True),
+    sort_order: int=Form(10), to_kitchen: str=Form("true"),
     file: Optional[UploadFile]=File(None)
 ):
+    print(f"DEBUG: Saving product {key}, Name: {name}, Price: {price}")
+    # Handle boolean conversion manually to be robust
+    is_kitchen = str(to_kitchen).lower() == "true"
+    
     update_data = {
         "name": name, "price": price, "description": description, "allergens": allergens,
-        "kcal": kcal, "weight": weight, "sort_order": sort_order, "to_kitchen": to_kitchen
+        "kcal": kcal, "weight": weight, "sort_order": sort_order, "to_kitchen": is_kitchen
     }
     if file and file.filename:
         img_dir = APP_DIR / "static" / "images"
         img_dir.mkdir(parents=True, exist_ok=True)
-        with open(img_dir / file.filename, "wb+") as f: f.write(file.file.read())
+        content = await file.read()
+        with open(img_dir / file.filename, "wb+") as f: f.write(content)
         update_data["image"] = file.filename
-    db.collection("menu").document(key).set(update_data, merge=True)
+        
+    db.collection("menu").document(str(key)).set(update_data, merge=True)
     await manager.broadcast(json.dumps({"type": "update"}))
+    print(f"DEBUG: Product {key} saved successfully.")
     return {"ok": True}
 
 # --- TABLES & CALLS ---
@@ -424,6 +432,27 @@ async def wydaj_bon(payload: dict):
     batch.commit()
     await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
+
+@app.get("/api/admin/stats")
+async def admin_stats(start_date: str, end_date: str):
+    try:
+        docs = db.collection("orders").stream()
+        revenue = 0.0
+        products = defaultdict(int)
+        for d in docs:
+            data = d.to_dict()
+            ts = data.get("timestamp")
+            if ts:
+                ts_str = ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
+                date_str = ts_str[:10]
+                if start_date <= date_str <= end_date:
+                    revenue += float(data.get("price", 0))
+                    name = data.get("burger_name", "Nieznany")
+                    if name:
+                        products[name] += 1
+        return {"revenue": revenue, "products": dict(sorted(products.items(), key=lambda x: x[1], reverse=True)[:10])}
+    except Exception as e:
+        return {"revenue": 0.0, "products": {}, "error": str(e)}
 
 # --- HTML PAGES ---
 # --- HTML PAGES ---

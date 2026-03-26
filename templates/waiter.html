@@ -125,6 +125,11 @@
     <div class="floor-container">
         <h2 style="color:var(--gold); text-align: center; margin: 10px 0;">🛎️ SALA / OBSŁUGA</h2>
         
+        <div id="waiter-pos-indicator" style="background:#111; padding:10px; border-radius:10px; margin-bottom:15px; text-align:center; font-size:0.75em; border:1px solid #333; display:flex; align-items:center; justify-content:center; gap:10px;">
+            <div id="pos-status-dot" style="width:10px; height:10px; border-radius:50%; background:#d32f2f;"></div>
+            <span>STACJA POS (DRUKARKA): <b id="pos-status-text">OFFLINE</b></span>
+        </div>
+
         <div style="display:flex; justify-content:center; gap:15px; margin-bottom:15px; font-size:0.8em; color:#ccc; flex-wrap:wrap;">
             <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:var(--green); border-radius:3px;"></div> Wolny</span>
             <span style="display:flex; align-items:center; gap:5px;"><div style="width:12px; height:12px; background:#fbc02d; border-radius:3px;"></div> Zajęty</span>
@@ -316,7 +321,28 @@
             }
         }
 
+        async function updatePOSStatus() {
+            try {
+                const r = await fetch('/api/device_status/Elvis_KWI_0326');
+                const d = await r.json();
+                const dot = document.getElementById('pos-status-dot');
+                const txt = document.getElementById('pos-status-text');
+                if(d.status === 'online') {
+                    dot.style.background = '#4caf50';
+                    txt.innerText = 'ONLINE';
+                    txt.style.color = '#4caf50';
+                } else {
+                    dot.style.background = '#d32f2f';
+                    txt.innerText = 'OFFLINE';
+                    txt.style.color = '#d32f2f';
+                }
+            } catch(e) {}
+        }
+        
         refresh(); 
+        setInterval(updatePOSStatus, 15000);
+        updatePOSStatus();
+
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);

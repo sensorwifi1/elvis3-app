@@ -59,9 +59,16 @@
     <div id="toast">Komunikat...</div>
 
     <nav>
-        <h2 style="color:var(--gold); text-align:center; margin-bottom:30px; font-size: 1.2em;">POS ADMIN</h2>
+        <h2 style="color:var(--gold); text-align:center; margin-bottom:10px; font-size: 1.2em;">POS ADMIN</h2>
+        <div id="nav-pos-status" style="background:#111; padding:10px; border-radius:10px; margin-bottom:20px; text-align:center; font-size:0.7em; border:1px solid #333;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;">
+                <div id="global-pos-dot" style="width:10px; height:10px; border-radius:50%; background:#d32f2f;"></div>
+                <b id="global-pos-text">POS OFFLINE</b>
+            </div>
+            <div id="global-pos-id" style="color:#666;">Elvis_KWI_0326</div>
+        </div>
         <button class="nav-btn active" onclick="showTab('tab-dash')">📊 DASHBOARD</button>
-        <button class="nav-btn" onclick="showTab('tab-pos')">🔌 POŁĄCZENIE POS</button>
+        <button class="nav-btn" onclick="showTab('tab-pos')">🔌 DRUKARKA ESP</button>
         <button class="nav-btn" onclick="showTab('tab-stats')">📈 STATYSTYKI</button>
         <button class="nav-btn" onclick="showTab('tab-floor')">🗺️ MAPA SALI</button>
         <button class="nav-btn" onclick="showTab('tab-menu')">🍔 PRODUKTY</button>
@@ -128,7 +135,30 @@
         </div>
 
         <div id="tab-menu" class="tab">
-            ... (existing menu code) ...
+            <div class="form-container">
+                <h3>Edytor Produktu</h3>
+                <div class="input-row">
+                    <input type="text" id="m-key" placeholder="Klucz (np. cola)">
+                    <input type="text" id="m-name" placeholder="Nazwa">
+                    <input type="number" id="m-price" placeholder="Cena">
+                    <input type="number" id="m-sort" value="10">
+                </div>
+                <div class="input-row">
+                    <textarea id="m-desc" placeholder="Opis"></textarea>
+                    <input type="text" id="m-allergens" placeholder="Alergeny">
+                    <input type="text" id="m-kcal" placeholder="Kcal">
+                    <input type="text" id="m-weight" placeholder="Gramatura">
+                </div>
+                <div class="input-row">
+                    <select id="m-kitchen">
+                        <option value="true">Wysyłaj na KDS (Kuchnia)</option>
+                        <option value="false">Bar / Napoje</option>
+                    </select>
+                    <input type="file" id="m-file" accept="image/*">
+                </div>
+                <button class="btn-save" onclick="saveProd()">💾 ZAPISZ I WGRAJ ZDJĘCIE</button>
+            </div>
+            <div id="prod-grid" class="prod-grid"></div>
         </div>
 
         <div id="tab-staff" class="tab">
@@ -333,9 +363,14 @@
             const file = document.getElementById('m-file').files[0];
             if(file) fd.append("file", file);
             
-            await fetch('/api/admin/save_product', { method:'POST', body:fd });
-            showToast("🍔 Produkt został pomyślnie zapisany!");
-            loadMenu();
+            try {
+                const res = await fetch('/api/admin/save_product', { method:'POST', body:fd });
+                const data = await res.json();
+                if(data.ok) {
+                    showToast("🍔 Produkt zapisany! Odświeżam listę...");
+                    loadMenu();
+                } else alert("Błąd zapisu: " + (data.error || "Nieznany błąd"));
+            } catch(e) { alert("Błąd połączenia: " + e.message); }
         }
 
         async function loadMenu() {
@@ -448,6 +483,16 @@
                     <td style="color:#4caf50;">OK</td>
                 </tr>
             `).join('') || "<tr><td colspan='5' style='text-align:center;'>Brak paragonów.</td></tr>";
+
+            // Sync global indicator
+            const dot = document.getElementById('pos-dot');
+            const globalDot = document.getElementById('global-pos-dot');
+            const globalText = document.getElementById('global-pos-text');
+            if(dot && globalDot) {
+                globalDot.style.background = dot.style.background;
+                globalText.innerText = `POS ${document.getElementById('pos-status-text').innerText}`;
+                globalText.style.color = dot.style.background;
+            }
         }
 
         // Ustaw domyślne daty dla statystyk na dzisiaj/wczoraj
