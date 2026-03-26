@@ -30,6 +30,18 @@
             <h3 style="color:#ff5252">Zarządzanie Czystką (DANGER ZONE)</h3>
             <p>Ta akcja bezpowrotnie usunie wszystkie produkty, zamówienia, konfiguracje sali i stoliki z bazy danych.</p>
             <button onclick="wipeDatabase()" style="background:#ff5252; color:#fff; font-size:1.2em; padding:15px;">Wyczyść Całą Bazę Danych</button>
+            <hr style="border-color:#444">
+            <h3 style="color:#d4af37">Inicjalizacja i Migracja</h3>
+            <p>Buduj nową bazę firestore z domyślnymi produktami i stolikiem.</p>
+            <button onclick="initDatabase()">Zainicjalizuj Bazę Danych</button>
+            <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+                <h4>Eksport / Import JSON</h4>
+                <button onclick="exportJSON()" style="background:#444; color:#fff;">Pobierz JSON (Backup)</button>
+                <div style="margin-top:10px;">
+                    <textarea id="import-data" placeholder="Wklej tutaj JSON do importu..." style="width:100%; height:100px; background:#000; color:#0f0; font-family:monospace;"></textarea>
+                    <button onclick="importJSON()" style="background:#444; color:#fff;">Importuj z JSON</button>
+                </div>
+            </div>
         </div>
 
         <div style="border:1px solid #333; padding:15px; margin-bottom:15px;" id="role-manager">
@@ -115,6 +127,50 @@
             const data = await res.json();
             if (data.ok) alert("Rola nadana pomyślnie");
             else alert("Błąd: " + data.error);
+        }
+
+        async function initDatabase() {
+            if(!confirm("Czy chcesz zainicjalizować bazę domyślnymi danymi? To może nadpisać istniejące rekordy.")) return;
+            const res = await fetch('/api/admin/init_db', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({auth_role: myRole})
+            });
+            const data = await res.json();
+            if (data.ok) alert("Baza zainicjalizowana pomyślnie.");
+            else alert("Błąd: " + data.error);
+        }
+
+        async function exportJSON() {
+            const res = await fetch('/api/admin/export_db');
+            if (!res.ok) { alert("Błąd eksportu"); return; }
+            const data = await res.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `elvis_db_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        async function importJSON() {
+            const raw = document.getElementById('import-data').value;
+            if(!raw) return alert("Wklej dane JSON najpierw!");
+            if(!confirm("Czy na pewno chcesz ZAIMPORTOWAĆ dane? To nadpisze istniejącą konfigurację!")) return;
+            
+            try {
+                const payload = JSON.parse(raw);
+                const res = await fetch('/api/admin/import_db', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({auth_role: myRole, payload: payload})
+                });
+                const data = await res.json();
+                if (data.ok) alert("Dane zaimportowane pomyślnie.");
+                else alert("Błąd importu: " + data.error);
+            } catch(e) {
+                alert("Błąd składni JSON: " + e.message);
+            }
         }
     </script>
 </body>

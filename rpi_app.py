@@ -47,14 +47,14 @@ def get_config():
     if CONFIG_PATH.exists():
         try: return json.loads(CONFIG_PATH.read_text())
         except: pass
-    return {"cloud_url": os.environ.get("CLOUD_BASE_URL", "http://127.0.0.1:8000")}
+    return {"cloud_url": os.environ.get("CLOUD_BASE_URL", "https://elvis-burger-v1-292715946390.europe-west1.run.app")}
 
 def save_config(conf):
     CONFIG_PATH.write_text(json.dumps(conf))
 
 # Konfiguracja Cloud
 CONFIG = get_config()
-CLOUD_BASE_URL = CONFIG.get("cloud_url", "http://127.0.0.1:8000")
+CLOUD_BASE_URL = CONFIG.get("cloud_url", "https://elvis-burger-v1-292715946390.europe-west1.run.app")
 
 # Globalny bufor zdarzeń i paragonów
 event_log = []
@@ -430,7 +430,7 @@ async def ws_client_loop():
     while True:
         dk = get_device_key()
         conf = get_config()
-        base_url = conf.get("cloud_url", "http://127.0.0.1:8000")
+        base_url = conf.get("cloud_url", "https://elvis-burger-v1-292715946390.europe-west1.run.app")
         
         if not dk or not base_url or "127.0.0.1" in base_url:
             add_log(f"⚠️ Skonfiguruj Cloud URL i Klucz ({dk or 'Brak klucza'})")

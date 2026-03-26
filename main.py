@@ -79,8 +79,20 @@ if os.path.exists(APP_DIR / "serviceAccountKey.json"):
 else:
     db = firestore.Client()
 
-API_KEY = ""
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
+# --- AI CONFIG & GEMINI ---
+AI_CONFIG_PATH = APP_DIR / "ai_config.json"
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+if AI_CONFIG_PATH.exists():
+    try:
+        with open(AI_CONFIG_PATH, "r") as f:
+            ai_cfg = json.load(f)
+            API_KEY = ai_cfg.get("GEMINI_API_KEY", API_KEY)
+            print("DEBUG: Loaded Gemini API Key from ai_config.json")
+    except Exception as e:
+        print(f"ERROR: Could not load ai_config.json: {e}")
+
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
 STATUS_MAP = {
     "nowe": "W kolejce", 
     "preparing": "W kuchni", 
@@ -264,6 +276,76 @@ async def wipe_db(request: Request):
             
     await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
+
+# --- DATABASE MANAGEMENT (INIT / EXPORT / IMPORT) ---
+
+@app.post("/api/admin/init_db")
+async def init_db(request: Request):
+    data = await request.json()
+    auth_role = data.get("auth_role")
+    if auth_role != "master": return {"error": "Tylko MASTER może inicjalizować bazę!"}
+    
+    # Przykładowe menu
+    default_menu = {
+        "burger_elvis": {"name": "Elvis Burger", "price": 38.0, "description": "Klasyka z bekonem i serem.", "sort_order": 1, "to_kitchen": True, "image": "burger.jpg"},
+        "frytki": {"name": "Frytki Belgijskie", "price": 14.0, "description": "Chrupiące, z solą morską.", "sort_order": 10, "to_kitchen": True},
+        "cola": {"name": "Coca-Cola", "price": 8.0, "description": "0.33l", "sort_order": 20, "to_kitchen": False}
+    }
+    for k, v in default_menu.items():
+        db.collection("menu").document(str(k)).set(v, merge=True)
+    
+    # Przykładowa mapa sali (1 stolik)
+    default_layout = {
+        "width": 10, "height": 10,
+        "tables": [{"id": 1, "x": 2, "y": 2, "label": "Stół 1"}]
+    }
+    db.collection("config").document("floor_plan").set(default_layout)
+    
+    # Domyślny personel
+    db.collection("staff").document("789643").set({"name": "MASTER", "role": "admin"})
+    db.collection("staff").document("102938").set({"name": "ADMIN", "role": "admin"})
+
+    await manager.broadcast(json.dumps({"type": "update"}))
+    return {"ok": True, "message": "Baza zainicjalizowana domyślnymi danymi."}
+
+@app.get("/api/admin/export_db")
+async def export_db(auth_role: str = Cookie(None)):
+    if auth_role != "master": return JSONResponse({"error": "Brak uprawnień"}, status_code=403)
+    
+    collections = ["menu", "staff", "users", "config", "active_tables", "orders"]
+    export_data = {}
+    
+    for coll_name in collections:
+        docs = db.collection(coll_name).stream()
+        export_data[coll_name] = {d.id: d.to_dict() for d in docs}
+        
+    return export_data
+
+@app.post("/api/admin/import_db")
+async def import_db(request: Request):
+    data = await request.json()
+    auth_role = data.get("auth_role")
+    payload = data.get("payload")
+    if auth_role != "master": return {"error": "Brak uprawnień"}
+    if not payload: return {"error": "Brak danych do importu"}
+    
+    batch = db.batch()
+    for coll_name, docs in payload.items():
+        for doc_id, doc_data in docs.items():
+            # Konwersja timestampów jeśli są w ISO
+            for k, v in doc_data.items():
+                if isinstance(v, str) and "T" in v and v.endswith("Z"):
+                    try:
+                        doc_data[k] = datetime.fromisoformat(v.replace("Z", "+00:00"))
+                    except: pass
+            
+            ref = db.collection(coll_name).document(doc_id)
+            batch.set(ref, doc_data)
+    
+    batch.commit()
+    await manager.broadcast(json.dumps({"type": "update"}))
+    return {"ok": True}
+
 
 @app.get("/api/admin/get_users")
 async def get_users():

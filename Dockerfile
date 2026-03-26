@@ -6,7 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Instalujemy biblioteki PLUS serwery produkcyjne (gunicorn i uvicorn)
-RUN pip install --no-cache-dir -r requirements.txt gunicorn uvicorn
+RUN pip install --no-cache-dir google-cloud-firestore gunicorn uvicorn -r requirements.txt
 
 # Kopiujemy całą resztę aplikacji (to trwa najkrócej)
 COPY . .
