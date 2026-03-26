@@ -311,7 +311,9 @@ async def ws_client_loop():
                     msg = await ws.recv()
                     data = json.loads(msg)
                     if data.get("type") == "receipt":
-                        add_log(f"🧾 Odebrano paragon (Stolik {data.get('table')})")
+                        items = data.get("items", [])
+                        total = sum(float(i.get("price", 0)) for i in items)
+                        add_log(f"🧾 Paragon Stolik {data.get('table_number')} | {len(items)} poz. | {total:.2f} zł")
         except Exception as e:
             add_log(f"Błąd WS ({base_url}): {e}. Ponawiam za 5s...")
             await asyncio.sleep(5)

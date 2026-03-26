@@ -4,7 +4,9 @@
       "Bash(pip show:*)",
       "Bash(dir /s /b C:GITelvis3-app*.json)",
       "Bash(dir /s /b C:UsersMarcinAppDataRoaminggcloudapplication_default_credentials.json)",
-      "Bash(curl -s http://127.0.0.1:8000/api/get_layout)"
+      "Bash(curl -s http://127.0.0.1:8000/api/get_layout)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py''\\).read\\(\\)\\); print\\(''main.py OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''main.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''main.py OK''\\)\")"
     ]
   }
 }

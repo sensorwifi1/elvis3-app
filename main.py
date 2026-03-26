@@ -139,9 +139,12 @@ async def staff_login(request: Request):
     data = await request.json()
     pin = str(data.get("pin"))
     # MASTER PIN (Dla szefa - Hajdukiewicz)
-    if pin == "789643": # Przykładowy pin dla Mastera (poprawiony na bezpieczniejszy)
+    if pin == "789643":
         return {"ok": True, "name": "MASTER", "role": "admin"}
-        
+    # Domyślny admin
+    if pin == "102938":
+        return {"ok": True, "name": "ADMIN", "role": "admin"}
+
     doc = db.collection("staff").document(pin).get()
     if doc.exists:
         u = doc.to_dict()
@@ -219,7 +222,12 @@ async def set_role(request: Request):
     if auth_role == "admin" and new_role == "admin": return {"error": "Admin nie może nadać roli Admina"}
     
     db.collection("users").document(target_email).set({"role": new_role})
+    await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
+
+@app.get("/api/admin/get_users")
+async def get_users():
+    return [{"email": d.id, **d.to_dict()} for d in db.collection("users").stream()]
 
 @app.post("/api/admin/set_password")
 async def set_password(request: Request):
