@@ -46,15 +46,7 @@
 </head>
 <body>
 
-    <div id="password-overlay" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:10000; display:flex; align-items:center; justify-content:center;">
-        <div style="background:#111; border:1px solid var(--gold); padding:40px; border-radius:20px; text-align:center; max-width:400px; width:90%; box-shadow:0 0 50px rgba(212,175,55,0.4);">
-            <h1 style="color:var(--gold); margin-bottom:10px; font-weight:800;">ELVIS ADMIN</h1>
-            <p style="color:#888; margin-bottom:30px;">Wprowadź PIN Admina / Szefa</p>
-            <input type="password" id="staff-pin" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:var(--gold); border-radius:10px; font-size:1.8em; text-align:center; letter-spacing:10px; margin-bottom:20px;" maxlength="8">
-            <button onclick="submitStaffPin()" style="width:100%; padding:18px; background:var(--gold); color:#000; font-weight:bold; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; transition:0.2s;">AUTORYZUJ</button>
-            <div id="login-error" style="color:var(--orange); margin-top:15px; font-weight:bold; display:none;">BŁĘDNY PIN!</div>
-        </div>
-    </div>
+
 
     <div id="toast">Komunikat...</div>
 
@@ -311,7 +303,7 @@
                 div.className = 'table-rect t-free';
                 div.style.width = (SCALE-5)+'px'; div.style.height = (SCALE-5)+'px';
                 div.style.left = (t.x * SCALE)+'px'; div.style.top = (t.y * SCALE)+'px';
-                div.innerText = t.n;
+                div.innerHTML = `${t.n} <span style="position:absolute; top:-8px; right:-8px; background:red; color:white; border-radius:50%; width:20px; height:20px; font-size:12px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10;" onclick="layout.tables.splice(${i}, 1); drawFloorEdit(); event.stopPropagation();">X</span>`;
                 div.onmousedown = (e) => {
                     let move = (ev) => {
                         let rect = f.getBoundingClientRect();
@@ -321,11 +313,6 @@
                     };
                     window.onmousemove = move;
                     window.onmouseup = () => window.onmousemove = null;
-                };
-                div.ondblclick = () => {
-                    let n = prompt("Numer stolika (wpisz USUN by skasować):", t.n);
-                    if(n === "USUN") layout.tables.splice(i, 1); else if(n) t.n = n;
-                    drawFloorEdit();
                 };
                 f.appendChild(div);
             });
@@ -499,7 +486,15 @@
 
         async function deleteStaff(pin) {
             if(confirm("Czy na pewno usunąć tego pracownika?")) {
-                showToast("Funkcja usuwania w trakcie wdrożenia...");
+                try {
+                    const res = await fetch('/api/admin/delete_staff', {
+                        method: 'POST', headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ pin })
+                    });
+                    const data = await res.json();
+                    if(data.ok) { showToast("Pracownik usunięty!"); loadStaff(); } 
+                    else alert("Błąd serwera: " + (data.error || "Nieznany błąd"));
+                } catch(e) { alert("Błąd połączenia: " + e.message); }
             }
         }
 
@@ -647,33 +642,19 @@
         document.getElementById('stats-from').value = wczoraj.toISOString().split('T')[0];
         document.getElementById('stats-to').value = dzisiaj.toISOString().split('T')[0];
 
-        async function checkAccess() {
-            const pin = localStorage.getItem('staff_pin') || '';
-            const res = await fetch('/api/auth/staff_login', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({pin: pin})
-            });
-            const data = await res.json();
-            if(data.ok && data.role === 'admin') {
-                myAdminRole = data.role;
-                document.getElementById('password-overlay').style.display = 'none';
-                return true;
+        function checkAccess() {
+            const pin = localStorage.getItem('staff_pin');
+            const role = localStorage.getItem('staff_role');
+            if(!pin || !['admin', 'master'].includes(role)) {
+                window.location.href = '/portal';
+                return false;
             }
-            return false;
+            myAdminRole = role;
+            return true;
         }
 
-        async function submitStaffPin() {
-            const pin = document.getElementById('staff-pin').value;
-            localStorage.setItem('staff_pin', pin);
-            if(await checkAccess()) startApp();
-            else { 
-                document.getElementById('login-error').style.display = 'block';
-                document.getElementById('staff-pin').value = '';
-            }
-        }
-
-        async function startApp() {
-            if(!(await checkAccess())) return;
+        function startApp() {
+            if(!checkAccess()) return;
             fetchData();
             loadStaff(); 
             connectWebSocket();

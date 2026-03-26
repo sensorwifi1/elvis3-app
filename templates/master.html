@@ -26,28 +26,26 @@
     <div id="dashboard-section" class="hidden">
         <h2 id="welcome-text"></h2>
         
+        <div style="border:1px solid #333; padding:15px; margin-bottom:15px; background: #2a0000;" id="danger-zone">
+            <h3 style="color:#ff5252">Zarządzanie Czystką (DANGER ZONE)</h3>
+            <p>Ta akcja bezpowrotnie usunie wszystkie produkty, zamówienia, konfiguracje sali i stoliki z bazy danych.</p>
+            <button onclick="wipeDatabase()" style="background:#ff5252; color:#fff; font-size:1.2em; padding:15px;">Wyczyść Całą Bazę Danych</button>
+        </div>
+
         <div style="border:1px solid #333; padding:15px; margin-bottom:15px;" id="role-manager">
-            <h3>Nadaj Uprawnienia</h3>
+            <h3>Nadaj Uprawnienia Master/Admin (Google Auth)</h3>
             <input type="email" id="target-email" placeholder="Adres email Google">
             <select id="target-role">
-                <option value="kuchnia">Kuchnia (KDS)</option>
+                <option value="user">Użytkownik</option>
                 <option value="admin">Admin (Zarządzanie POS)</option>
             </select>
-            <button onclick="grantRole()">NADAJ ROLĘ</button>
+            <button onclick="grantRole()">NADAJ ROLĘ GOOGLE</button>
         </div>
 
         <div style="border:1px solid #333; padding:15px;">
-            <h3>Ustaw Hasła Panelów</h3>
-            <div>
-                <label>Wydawka:</label>
-                <input type="text" id="wydawka-pwd" placeholder="Hasło dla wydawki">
-                <button onclick="setPwd('wydawka')">ZAPISZ</button>
-            </div>
-            <div>
-                <label>KDS (Kuchnia):</label>
-                <input type="text" id="kds-pwd" placeholder="Hasło dla KDS">
-                <button onclick="setPwd('kds')">ZAPISZ</button>
-            </div>
+            <h3>Zarządzanie Restauracją</h3>
+            <p>Aby zarządzać menu, salą oraz załogą (PINy autoryzacyjne), przejdź do centralnego portalu pracowniczego i zaloguj się PINem Mastera.</p>
+            <a href="/portal" style="display:inline-block; background:#d4af37; color:#000; padding:15px 20px; font-weight:bold; text-decoration:none; border-radius:5px;">Przejdź do Portalu (KDS/WYDAWKA/ADMIN)</a>
         </div>
     </div>
 
@@ -72,6 +70,7 @@
                     
                     if (myRole === "admin") {
                         document.getElementById('target-role').querySelector('option[value="admin"]').disabled = true;
+                        document.getElementById('danger-zone').style.display = 'none'; // Tylko Master
                     }
                 } else {
                     document.getElementById('dashboard-section').classList.remove('hidden');
@@ -80,6 +79,20 @@
             } else {
                 alert("Błąd logowania: " + data.error);
             }
+        }
+
+        async function wipeDatabase() {
+            if(!confirm("KRYTYCZNE: Czy na pewno chcesz USUNĄĆ CAŁĄ BAZĘ? Menu, stoliki, zamówienia przepadną!")) return;
+            if(!confirm("POTWIERDŹ PONOWNIE: BAZA ZOSTANIE WYCZYSZCZONA.")) return;
+            
+            const res = await fetch('/api/admin/wipe_db', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({auth_role: myRole})
+            });
+            const data = await res.json();
+            if (data.ok) alert("Baza danych została pomyślnie wyczyszczona.");
+            else alert("Błąd: " + data.error);
         }
 
         function getCookie(name) {
@@ -101,23 +114,6 @@
             });
             const data = await res.json();
             if (data.ok) alert("Rola nadana pomyślnie");
-            else alert("Błąd: " + data.error);
-        }
-
-        async function setPwd(view) {
-            const role = getCookie("auth_role") || myRole;
-            const pwd = document.getElementById(`${view}-pwd`).value;
-            const res = await fetch('/api/admin/set_password', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    auth_role: role,
-                    view: view,
-                    password: pwd
-                })
-            });
-            const data = await res.json();
-            if (data.ok) alert("Hasło ustawione");
             else alert("Błąd: " + data.error);
         }
     </script>

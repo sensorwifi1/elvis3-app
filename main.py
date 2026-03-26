@@ -72,7 +72,12 @@ async def get_device_status(device_key: str):
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
-db = firestore.Client()
+# --- FIRESTORE CLIENT ---
+if os.path.exists(APP_DIR / "serviceAccountKey.json"):
+    print("DEBUG: Using local serviceAccountKey.json for Firestore")
+    db = firestore.Client.from_service_account_json(str(APP_DIR / "serviceAccountKey.json"))
+else:
+    db = firestore.Client()
 
 API_KEY = ""
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={API_KEY}"
@@ -133,6 +138,17 @@ async def save_staff(request: Request):
 @app.get("/api/admin/get_staff")
 async def get_staff():
     return [{"pin": d.id, **d.to_dict()} for d in db.collection("staff").stream()]
+
+@app.post("/api/admin/delete_staff")
+async def delete_staff(request: Request):
+    data = await request.json()
+    pin = data.get("pin")
+    if not pin: return {"ok": False, "error": "Brak PIN do usunięcia."}
+    try:
+        db.collection("staff").document(str(pin)).delete()
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @app.post("/api/auth/staff_login")
 async def staff_login(request: Request):
@@ -222,6 +238,30 @@ async def set_role(request: Request):
     if auth_role == "admin" and new_role == "admin": return {"error": "Admin nie może nadać roli Admina"}
     
     db.collection("users").document(target_email).set({"role": new_role})
+    await manager.broadcast(json.dumps({"type": "update"}))
+    return {"ok": True}
+
+@app.post("/api/admin/wipe_db")
+async def wipe_db(request: Request):
+    data = await request.json()
+    auth_role = data.get("auth_role")
+    if auth_role != "master": return {"error": "Tylko MASTER może wyczyścić bazę!"}
+    
+    for coll in ["menu", "active_tables", "orders", "config"]:
+        docs = db.collection(coll).stream()
+        batch = db.batch()
+        count = 0
+        for doc in docs:
+            # Zachowaj mapę sali domyślnie, aby nie rzucała błędów
+            if coll == "config" and doc.id == "floor_plan": continue
+            batch.delete(db.collection(coll).document(doc.id))
+            count += 1
+            if count >= 400:
+                batch.commit()
+                batch = db.batch()
+                count = 0
+        if count > 0: batch.commit()
+            
     await manager.broadcast(json.dumps({"type": "update"}))
     return {"ok": True}
 
@@ -548,3 +588,7 @@ async def admin(request: Request):
 @app.get("/master", response_class=HTMLResponse)
 async def master_page(request: Request):
     return templates.TemplateResponse(request=request, name="master.html", context={"request": request, "client_id": GOOGLE_CLIENT_ID})
+
+@app.get("/portal", response_class=HTMLResponse)
+async def portal_page(request: Request):
+    return templates.TemplateResponse(request=request, name="portal.html", context={"request": request})

@@ -84,39 +84,11 @@
 </head>
 <body>
 
-    <div id="password-overlay" style="position:fixed; inset:0; background:#000; z-index:10000; display:flex; align-items:center; justify-content:center;">
-        <div style="background:#111; border:1px solid var(--gold); padding:40px; border-radius:20px; text-align:center; max-width:400px; width:90%; box-shadow:0 0 50px rgba(212,175,55,0.2);">
-            <h1 style="color:var(--gold); margin-bottom:10px;">ELVIS POS</h1>
-            <p style="color:#888; margin-bottom:30px;">Wprowadź swój PIN (min. 6 znaków)</p>
-            <input type="password" id="staff-pin" style="width:100%; padding:15px; background:#000; border:1px solid #333; color:var(--gold); border-radius:10px; font-size:1.8em; text-align:center; letter-spacing:10px; margin-bottom:20px;" maxlength="8">
-            <button onclick="submitStaffPin()" style="width:100%; padding:18px; background:var(--gold); color:#000; font-weight:bold; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; transition:0.2s;">ZALOGUJ SIĘ</button>
-            <div id="login-error" style="color:var(--red); margin-top:15px; font-size:0.9em; display:none;">Błędny PIN! Spróbuj ponownie.</div>
-        </div>
-    </div>
-
     <script>
-        async function submitStaffPin() {
-            const pin = document.getElementById('staff-pin').value;
-            const res = await fetch('/api/auth/staff_login', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ pin: pin })
-            });
-            const data = await res.json();
-            if (data.ok) {
-                // Sprawdzamy rolę - kelner/admin mogą tu wejść
-                if (data.role === 'waiter' || data.role === 'admin') {
-                    localStorage.setItem('staff_name', data.name);
-                    localStorage.setItem('staff_role', data.role);
-                    document.getElementById('password-overlay').style.display = 'none';
-                    initApp(); // Uruchamiamy aplikację
-                } else {
-                    alert("Ta rola nie ma uprawnień do Panelu Kelnera!");
-                    location.reload();
-                }
-            } else {
-                document.getElementById('login-error').style.display = 'block';
-                document.getElementById('staff-pin').value = '';
-            }
+        const staffPin = localStorage.getItem('staff_pin');
+        const staffRole = localStorage.getItem('staff_role');
+        if (!staffPin || !['waiter', 'admin', 'master'].includes(staffRole)) {
+            window.location.href = '/portal';
         }
     </script>
 
@@ -125,9 +97,22 @@
     <div class="floor-container">
         <h2 style="color:var(--gold); text-align: center; margin: 10px 0;">🛎️ SALA / OBSŁUGA</h2>
         
-        <div id="waiter-pos-indicator" style="background:#111; padding:10px; border-radius:10px; margin-bottom:15px; text-align:center; font-size:0.75em; border:1px solid #333; display:flex; align-items:center; justify-content:center; gap:10px;">
-            <div id="pos-status-dot" style="width:10px; height:10px; border-radius:50%; background:#d32f2f;"></div>
-            <span>STACJA POS (DRUKARKA): <b id="pos-status-text">OFFLINE</b></span>
+        <div id="waiter-pos-indicator" style="background:#111; padding:10px; border-radius:10px; margin-bottom:15px; text-align:center; font-size:0.75em; border:1px solid #333; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div id="pos-status-dot" style="width:10px; height:10px; border-radius:50%; background:#d32f2f;"></div>
+                <span>DRUKARKA: <b id="pos-status-text">OFFLINE</b></span>
+            </div>
+            <button onclick="toggleLastReceipt()" style="background:#222; border:1px solid var(--gold); color:var(--gold); padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.9em;">📋 OSTATNI RACHUNEK</button>
+        </div>
+
+        <!-- MODAL NA OSTATNI RACHUNEK -->
+        <div id="receipt-modal" style="display:none; position:fixed; inset:20px; background:rgba(0,0,0,0.95); z-index:9000; border:1px solid var(--gold); border-radius:20px; padding:20px; flex-direction:column; box-shadow:0 0 50px #000;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+                <h3 style="margin:0; color:var(--gold);">Ostatni Paragon (Elzab Zeta)</h3>
+                <button onclick="toggleLastReceipt()" style="background:#333; border:none; color:#fff; padding:5px 15px; border-radius:8px; cursor:pointer;">ZAMKNIJ</button>
+            </div>
+            <pre id="receipt-json" style="flex:1; overflow:auto; background:#111; padding:15px; border-radius:10px; font-size:0.85em; color:var(--gold); margin:0; line-height:1.4; border:1px solid #222;"></pre>
+            <button onclick="fetchLastReceiptWaiter()" style="margin-top:15px; background:var(--gold); color:#000; padding:12px; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">ODŚWIEŻ DANE</button>
         </div>
 
         <div style="display:flex; justify-content:center; gap:15px; margin-bottom:15px; font-size:0.8em; color:#ccc; flex-wrap:wrap;">
@@ -248,6 +233,7 @@
                         <span>${o.price.toFixed(2)} zł</span>
                     </div>
                     <div style="font-size:0.85em; color:var(--gold); margin:8px 0;">Status: ${statusMap[o.status] || o.status}</div>
+                    ${o.note ? `<div style="color:var(--gold); font-style:italic; margin-bottom:10px; font-weight:bold;">📝 UWAGI: ${o.note}</div>` : ''}
                     <div style="display:flex; gap:10px; align-items:center;">
                         ${(canIssue && o.status !== 'closed') ? 
                             `<button class="btn-issue" onclick="upd('${o.id}', 'closed')">WYDAJ DO STOŁU</button>` : 
@@ -337,6 +323,40 @@
                     txt.style.color = '#d32f2f';
                 }
             } catch(e) {}
+        }
+
+        async function fetchLastReceiptWaiter() {
+            try {
+                const res = await fetch('/api/admin/last_receipt');
+                const data = await res.json();
+                if(data.error) return;
+                
+                const elzab = {
+                    "cmd": "print_receipt",
+                    "table_number": data.table_number,
+                    "items": data.items.map(i => ({ 
+                        "burger_name": i.burger_name, 
+                        "price": i.price, 
+                        "n": i.burger_name, 
+                        "p": i.price, 
+                        "q": 1 
+                    })),
+                    "total": data.total,
+                    "date": data.timestamp
+                };
+                
+                document.getElementById('receipt-json').innerText = JSON.stringify(elzab, null, 2);
+            } catch(e) {}
+        }
+
+        function toggleLastReceipt() {
+            const m = document.getElementById('receipt-modal');
+            if(m.style.display === 'none') {
+                m.style.display = 'flex';
+                fetchLastReceiptWaiter();
+            } else {
+                m.style.display = 'none';
+            }
         }
         
         refresh(); 
